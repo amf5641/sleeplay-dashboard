@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sleeplay Dashboard — Train Your Team</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="login-screen" id="login-screen">
+    <div class="login-card">
+      <div class="login-header">
+        <img src="sleeplay-logo.svg" alt="Sleeplay" class="login-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <span class="login-logo-fallback">Sleeplay</span>
+        <h1 class="login-title">Sleeplay Dashboard</h1>
+        <p class="login-subtitle">Sign in to continue</p>
+      </div>
+      <div class="login-panel" id="login-panel">
+        <form class="login-form" id="login-form" autocomplete="on">
+          <label class="login-label" for="login-email">Email</label>
+          <input type="email" id="login-email" class="login-input" placeholder="Enter your email" autocomplete="email" required />
+          <label class="login-label" for="login-password">Password</label>
+          <input type="password" id="login-password" class="login-input" placeholder="Enter your password" autocomplete="current-password" required />
+          <p class="login-error" id="login-error" role="alert"></p>
+          <button type="submit" class="btn-primary login-submit" id="login-submit">Sign in</button>
+          <p class="login-forgot-wrap"><button type="button" class="login-forgot-link" id="login-forgot-link">Forgot password?</button></p>
+        </form>
+      </div>
+      <div class="login-panel login-forgot-panel" id="forgot-panel" style="display: none;">
+        <p class="login-subtitle" id="forgot-subtitle">Enter your account email. We’ll send you a secure link to reset your password.</p>
+        <form class="login-form" id="forgot-email-form">
+          <label class="login-label" for="forgot-email">Email</label>
+          <input type="email" id="forgot-email" class="login-input" placeholder="your@email.com" autocomplete="email" required />
+          <p class="login-error" id="forgot-email-error" role="alert"></p>
+          <button type="submit" class="btn-primary login-submit">Send reset email</button>
+        </form>
+        <div class="login-email-sent" id="forgot-email-sent" style="display: none;">
+          <p class="login-email-sent-title">Check your email</p>
+          <p class="login-email-sent-body">We’ve sent a password reset link to <strong id="forgot-email-display"></strong>. Open the email and follow the link to set a new password.</p>
+          <p class="login-email-sent-note">This app runs in your browser only and cannot send real emails. To enable secure email-based reset, add a backend with an email service (e.g. SendGrid, Resend). For now, you can set a new password on this device:</p>
+          <button type="button" class="btn-secondary login-continue-reset" id="forgot-continue-reset">Set new password on this device</button>
+        </div>
+        <form class="login-form" id="forgot-password-form" style="display: none;">
+          <label class="login-label" for="forgot-new-password">New password</label>
+          <input type="password" id="forgot-new-password" class="login-input" placeholder="••••••••" autocomplete="new-password" required minlength="6" />
+          <label class="login-label" for="forgot-confirm-password">Confirm new password</label>
+          <input type="password" id="forgot-confirm-password" class="login-input" placeholder="••••••••" autocomplete="new-password" required minlength="6" />
+          <p class="login-error" id="forgot-password-error" role="alert"></p>
+          <button type="submit" class="btn-primary login-submit">Reset password</button>
+        </form>
+        <p class="login-forgot-success" id="forgot-success" style="display: none;">Password updated. You can now sign in with your new password.</p>
+        <p class="login-back-wrap"><button type="button" class="login-back-link" id="forgot-back-link">← Back to sign in</button></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="app" id="app" style="display: none;">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <img src="sleeplay-logo.svg" alt="Sleeplay" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <span class="logo-fallback">Sleeplay</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <button type="button" class="nav-item" data-view="content">
+          <span class="nav-icon">📁</span>
+          <span>Content</span>
+        </button>
+        <button type="button" class="nav-item active" data-view="all">
+          <span class="nav-icon">📋</span>
+          <span>SOP</span>
+        </button>
+        <button type="button" class="nav-item" data-view="orgchart">
+          <span class="nav-icon">🏢</span>
+          <span>Org Chart</span>
+        </button>
+        <button type="button" class="nav-item" data-view="projects">
+          <span class="nav-icon">✓</span>
+          <span>Projects</span>
+        </button>
+        <button type="button" class="nav-item" data-view="meet-team">
+          <span class="nav-icon">👤</span>
+          <span>Team</span>
+        </button>
+        <button type="button" class="nav-item" data-view="team">
+          <span class="nav-icon">⚙</span>
+          <span>Settings</span>
+        </button>
+        <div class="nav-section nav-section-categories" id="nav-section-categories">
+          <div class="nav-section-header">
+            <span>Categories</span>
+            <button type="button" class="btn-icon btn-add-category" title="Add category">+</button>
+          </div>
+          <ul class="category-list" id="category-list"></ul>
+        </div>
+        <div class="nav-section nav-section-projects" id="nav-section-projects">
+          <div class="nav-section-header">
+            <span>My projects</span>
+          </div>
+          <ul class="sidebar-project-list" id="sidebar-project-list"></ul>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <button type="button" class="btn-primary btn-sidebar-primary" id="btn-sidebar-primary">
+          <span>+</span> <span id="btn-sidebar-primary-label">New SOP</span>
+        </button>
+        <button type="button" class="btn-logout" id="btn-logout">Log out</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="search" class="search-input" id="search-input" placeholder="Search SOPs..." autocomplete="off" />
+        </div>
+        <div class="topbar-actions">
+          <span class="sop-count" id="sop-count">0 SOPs</span>
+        </div>
+      </header>
+
+      <div class="content">
+        <div class="view-content" id="view-content">
+          <div class="content-header">
+            <h1 class="list-title">Content</h1>
+            <p class="list-subtitle">Company, policies, and process documents</p>
+          </div>
+          <div class="content-grid" id="content-grid"></div>
+        </div>
+        <div class="view-content-detail" id="view-content-detail">
+          <div class="detail-toolbar">
+            <button type="button" class="btn-back" id="btn-back-content">← Back to Content</button>
+          </div>
+          <div class="content-detail-body-wrap">
+            <input type="text" class="content-detail-title" id="content-detail-title" placeholder="Document title" />
+            <textarea class="content-detail-body" id="content-detail-body" placeholder="Write your content here..." rows="20"></textarea>
+          </div>
+        </div>
+        <div class="view-list view-active" id="view-list">
+          <div class="list-content-wrap">
+            <div class="list-main">
+              <div class="list-header list-header-sop">
+                <div class="list-header-top">
+                  <h1 class="list-title" id="list-title">SOP</h1>
+                  <span class="list-sop-count" id="list-sop-count" aria-hidden="true"></span>
+                </div>
+                <p class="list-subtitle" id="list-subtitle">Select a category to view SOPs</p>
+              </div>
+              <div class="sop-grid" id="sop-grid"></div>
+              <div class="empty-state empty-state-sop" id="empty-state">
+                <div class="empty-state-icon-wrap">
+                  <svg class="empty-state-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M28 4H12a4 4 0 0 0-4 4v32a4 4 0 0 0 4 4h24a4 4 0 0 0 4-4V16L28 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M28 4v12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+                <h2 class="empty-state-title" id="empty-state-title">No SOPs yet</h2>
+                <p class="empty-state-desc" id="empty-state-desc">Create your first SOP to start training your team.</p>
+                <button type="button" class="btn-primary btn-empty-cta" id="btn-empty-cta">+ Create your first SOP</button>
+              </div>
+            </div>
+            <aside class="list-categories-panel" id="list-categories-panel">
+              <div class="list-categories-header">
+                <span>Categories</span>
+                <button type="button" class="btn-icon btn-add-category-right" title="Add category">+</button>
+              </div>
+              <ul class="category-list list-categories-list" id="list-category-list"></ul>
+            </aside>
+          </div>
+        </div>
+
+        <div class="view-orgchart" id="view-orgchart">
+          <div class="orgchart-header">
+            <h1 class="list-title">Org Chart</h1>
+            <p class="list-subtitle">Company structure — who reports to whom</p>
+            <button type="button" class="btn-primary btn-add-person" id="btn-add-person">+ Add person</button>
+          </div>
+          <div class="orgchart-canvas" id="orgchart-canvas">
+            <div class="orgchart-canvas-inner" id="orgchart-canvas-inner">
+              <div class="orgchart-tree" id="orgchart-tree"></div>
+            </div>
+          </div>
+          <div class="orgchart-zoom-ui" id="orgchart-zoom-ui">
+            <button type="button" class="orgchart-zoom-btn" id="orgchart-zoom-out" title="Zoom out">−</button>
+            <span class="orgchart-zoom-pct" id="orgchart-zoom-pct">100%</span>
+            <button type="button" class="orgchart-zoom-btn" id="orgchart-zoom-in" title="Zoom in">+</button>
+            <button type="button" class="orgchart-zoom-btn orgchart-zoom-fit" id="orgchart-zoom-fit" title="Fit to view">Fit</button>
+          </div>
+          <div class="orgchart-empty" id="orgchart-empty">
+            <p>No one in the org chart yet. Add your first person to get started.</p>
+          </div>
+        </div>
+
+        <div class="view-projects" id="view-projects">
+          <div class="projects-header">
+            <h1 class="list-title">Projects</h1>
+            <p class="list-subtitle">Track work and tasks — Asana-style</p>
+            <div class="projects-filters">
+              <button type="button" class="project-filter-btn active" data-project-filter="all">All</button>
+              <button type="button" class="project-filter-btn" data-project-filter="incomplete">Incomplete</button>
+              <button type="button" class="project-filter-btn" data-project-filter="complete">Complete</button>
+            </div>
+            <button type="button" class="btn-primary btn-new-project" id="btn-new-project">+ New project</button>
+          </div>
+          <div class="projects-grid" id="projects-grid"></div>
+          <div class="projects-empty" id="projects-empty">
+            <p>No projects yet. Create a project to add tasks and assign work.</p>
+          </div>
+        </div>
+
+        <div class="view-meet-team" id="view-meet-team">
+          <input type="file" id="meet-team-photo-input" accept="image/*" style="display: none;" />
+          <div class="meet-team-list-wrap" id="meet-team-list-wrap">
+            <div class="meet-team-header">
+              <h1 class="list-title">Meet the Team</h1>
+              <p class="list-subtitle">The people behind the work</p>
+            </div>
+            <div class="meet-team-grid" id="meet-team-grid"></div>
+            <div class="meet-team-empty" id="meet-team-empty">
+              <p>No team members yet. Add people in the <strong>Org Chart</strong> to see them here.</p>
+            </div>
+          </div>
+          <div class="view-meet-team-detail" id="view-meet-team-detail">
+            <div class="detail-toolbar">
+              <button type="button" class="btn-back" id="btn-back-meet-team">← Back to Team</button>
+            </div>
+            <div class="meet-team-profile" id="meet-team-profile">
+              <div class="meet-team-profile-header">
+                <div class="meet-team-profile-photo-wrap" id="meet-team-profile-photo"></div>
+                <div class="meet-team-profile-meta">
+                  <h1 class="meet-team-profile-name" id="meet-team-profile-name"></h1>
+                  <p class="meet-team-profile-title" id="meet-team-profile-title"></p>
+                </div>
+              </div>
+              <div class="meet-team-profile-sections">
+                <section class="meet-team-profile-section">
+                  <label class="meet-team-profile-label" for="meet-team-profile-goals">Goals</label>
+                  <textarea class="meet-team-profile-textarea" id="meet-team-profile-goals" placeholder="What are your professional or personal goals?" rows="4"></textarea>
+                </section>
+                <section class="meet-team-profile-section">
+                  <label class="meet-team-profile-label" for="meet-team-profile-hobbies">Hobbies</label>
+                  <textarea class="meet-team-profile-textarea" id="meet-team-profile-hobbies" placeholder="What do you like to do in your free time?" rows="4"></textarea>
+                </section>
+                <section class="meet-team-profile-section">
+                  <label class="meet-team-profile-label" for="meet-team-profile-interests">Interests</label>
+                  <textarea class="meet-team-profile-textarea" id="meet-team-profile-interests" placeholder="What are you interested in?" rows="4"></textarea>
+                </section>
+              </div>
+              <div class="meet-team-profile-actions">
+                <button type="button" class="btn-primary" id="btn-save-meet-team-profile">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="view-team" id="view-team">
+          <div class="team-header">
+            <h1 class="list-title">Settings</h1>
+            <p class="list-subtitle">Add and invite users who can sign in to the dashboard</p>
+            <div class="team-actions">
+              <button type="button" class="btn-primary btn-add-user" id="btn-add-user">+ Add user</button>
+              <button type="button" class="btn-secondary btn-invite-user" id="btn-invite-user">Invite user</button>
+            </div>
+          </div>
+          <div class="team-list-wrap">
+            <ul class="team-list" id="team-list"></ul>
+          </div>
+        </div>
+
+        <div class="view-project-detail" id="view-project-detail">
+          <div class="detail-toolbar">
+            <button type="button" class="btn-back" id="btn-back-project">← Back to projects</button>
+            <div class="detail-actions">
+              <button type="button" class="btn-secondary btn-delete-project" id="btn-delete-project">Delete project</button>
+            </div>
+          </div>
+          <div class="project-detail-header">
+            <h1 class="project-detail-name" id="project-detail-name"></h1>
+            <p class="project-detail-desc" id="project-detail-desc"></p>
+            <nav class="project-view-tabs">
+              <button type="button" class="project-view-tab active" data-project-view="list">List</button>
+              <button type="button" class="project-view-tab" data-project-view="calendar">Calendar</button>
+            </nav>
+            <div class="project-toolbar">
+              <button type="button" class="btn-primary btn-add-task" id="btn-add-task">+ Add task</button>
+            </div>
+          </div>
+          <div class="task-view-list" id="task-view-list">
+            <div class="task-table-wrap">
+              <table class="task-table">
+                <thead>
+                  <tr>
+                    <th class="task-col-check"></th>
+                    <th class="task-col-name">Name</th>
+                    <th class="task-col-due">Due date</th>
+                    <th class="task-col-collab">Collaborators</th>
+                    <th class="task-col-priority">Priority</th>
+                    <th class="task-col-actions"></th>
+                  </tr>
+                </thead>
+                <tbody id="task-table-body"></tbody>
+              </table>
+            </div>
+            <div class="task-list-empty" id="task-list-empty">
+              <p>No tasks yet. Add a task to get started.</p>
+            </div>
+          </div>
+          <div class="task-view-calendar" id="task-view-calendar">
+            <div class="calendar-toolbar">
+              <button type="button" class="btn-icon calendar-prev" id="calendar-prev">‹</button>
+              <h2 class="calendar-month-title" id="calendar-month-title"></h2>
+              <button type="button" class="btn-icon calendar-next" id="calendar-next">›</button>
+            </div>
+            <div class="calendar-grid" id="calendar-grid"></div>
+            <div class="calendar-no-date" id="calendar-no-date">
+              <h3>No date</h3>
+              <div class="calendar-no-date-tasks" id="calendar-no-date-tasks"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="view-detail" id="view-detail">
+          <div class="detail-toolbar">
+            <button type="button" class="btn-back" id="btn-back">← Back</button>
+            <div class="detail-actions">
+              <button type="button" class="btn-secondary btn-delete-sop" id="btn-delete-sop">Delete</button>
+            </div>
+          </div>
+          <article class="sop-detail" id="sop-detail">
+            <div class="sop-detail-header">
+              <input type="text" class="sop-detail-title" id="sop-detail-title" placeholder="SOP Title" />
+            <div class="sop-detail-meta">
+                <select class="sop-detail-category-select" id="sop-detail-category-select" title="Change category">
+                  <option value="">Uncategorized</option>
+                </select>
+                <span class="sop-detail-date" id="sop-detail-date"></span>
+            </div>
+            </div>
+            <div class="sop-detail-body">
+              <section class="sop-section">
+                <h3 class="sop-section-title">Purpose</h3>
+                <p class="sop-section-desc">Why does this process exist and what outcome does it produce?</p>
+                <textarea class="sop-section-input" id="sop-detail-purpose" placeholder="e.g. Ensure every new hire gets access to systems and training so they can contribute in their first week."></textarea>
+              </section>
+              <section class="sop-section">
+                <h3 class="sop-section-title">Step-by-step instructions</h3>
+                <p class="sop-section-desc">Detailed enough for someone new to follow without asking questions.</p>
+                <textarea class="sop-section-input" id="sop-detail-steps" placeholder="1. First action...&#10;2. Second action...&#10;3. Include where to click, what to enter, and in what order."></textarea>
+              </section>
+              <section class="sop-section">
+                <h3 class="sop-section-title">Roles and responsibilities</h3>
+                <p class="sop-section-desc">Who does what at each step.</p>
+                <textarea class="sop-section-input" id="sop-detail-roles" placeholder="e.g. Manager: approves request. HR: sends invite. New hire: completes form within 24 hours."></textarea>
+              </section>
+              <section class="sop-section">
+                <h3 class="sop-section-title">Decision points</h3>
+                <p class="sop-section-desc">What to do when things don't go as planned.</p>
+                <textarea class="sop-section-input" id="sop-detail-decisions" placeholder="e.g. If access isn't granted within 48 hours, escalate to IT. If the form is rejected, Manager reviews and resubmits."></textarea>
+              </section>
+              <section class="sop-section">
+                <h3 class="sop-section-title">Tools and systems</h3>
+                <p class="sop-section-desc">Which software, platforms, or resources are involved.</p>
+                <textarea class="sop-section-input" id="sop-detail-tools" placeholder="e.g. HRIS (BambooHR), Slack #onboarding, Google Drive – Onboarding folder, LMS (Trainual)."></textarea>
+              </section>
+              <section class="sop-section">
+                <h3 class="sop-section-title">Loom video (optional)</h3>
+                <p class="sop-section-desc">Paste a Loom share link to embed a walkthrough video with this SOP.</p>
+                <input type="url" class="sop-section-input sop-section-input-inline" id="sop-detail-loom" placeholder="https://www.loom.com/share/..." />
+                <div class="sop-loom-embed-wrap" id="sop-loom-embed-wrap">
+                  <iframe id="sop-loom-embed" class="sop-loom-embed" title="Loom video"></iframe>
+                </div>
+              </section>
+            </div>
+          </article>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modal-overlay"></div>
+  <div class="modal" id="modal-person">
+    <div class="modal-content">
+      <h2 class="modal-title" id="modal-person-title-label">Add person</h2>
+      <label class="modal-label">Photo (optional)</label>
+      <div class="modal-person-photo-wrap">
+        <div class="modal-person-photo-preview" id="modal-person-photo-preview"></div>
+        <div class="modal-person-photo-actions">
+          <input type="file" id="modal-person-photo-input" accept="image/*" style="display: none;" />
+          <button type="button" class="btn-secondary btn-sm" id="modal-person-photo-btn">Choose photo</button>
+          <button type="button" class="btn-secondary btn-sm" id="modal-person-photo-remove" style="display: none;">Remove</button>
+        </div>
+      </div>
+      <label class="modal-label">Name <span class="modal-required">*</span></label>
+      <input type="text" class="modal-input" id="modal-person-name" placeholder="Full name" required autocomplete="name" />
+      <p class="modal-field-error" id="modal-person-name-error" role="alert"></p>
+      <label class="modal-label">Title</label>
+      <input type="text" class="modal-input" id="modal-person-title" placeholder="Job title" />
+      <label class="modal-label">Location (optional)</label>
+      <input type="text" class="modal-input" id="modal-person-location" placeholder="e.g. Miami FL" />
+      <label class="modal-label">Reports to</label>
+      <select class="modal-select" id="modal-person-manager">
+        <option value="">— No manager (top level) —</option>
+      </select>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary btn-modal-cancel btn-person-cancel">Cancel</button>
+        <button type="button" class="btn-primary btn-modal-save" id="btn-save-person">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-project">
+    <div class="modal-content">
+      <h2 class="modal-title">New project</h2>
+      <label class="modal-label">Project name</label>
+      <input type="text" class="modal-input" id="modal-project-name" placeholder="e.g. Q1 Launch" />
+      <label class="modal-label">Description (optional)</label>
+      <textarea class="modal-textarea" id="modal-project-desc" placeholder="What's this project about?" rows="3"></textarea>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary btn-modal-cancel btn-project-cancel">Cancel</button>
+        <button type="button" class="btn-primary btn-modal-save" id="btn-save-project">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-task">
+    <div class="modal-content modal-content-wide">
+      <h2 class="modal-title" id="modal-task-title-label">Add task</h2>
+      <label class="modal-label">Task name</label>
+      <input type="text" class="modal-input" id="modal-task-title" placeholder="What needs to be done?" />
+      <label class="modal-label">Due date (optional)</label>
+      <input type="date" class="modal-input" id="modal-task-due" />
+      <label class="modal-label">Priority</label>
+      <select class="modal-select" id="modal-task-priority">
+        <option value="high">High</option>
+        <option value="medium" selected>Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <label class="modal-label">Collaborators</label>
+      <div class="modal-collaborators" id="modal-task-collaborators"></div>
+      <label class="modal-checkbox-row" id="modal-task-completed-row" style="display: none;">
+        <input type="checkbox" id="modal-task-completed" />
+        <span>Mark as completed</span>
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary btn-modal-cancel btn-task-cancel">Cancel</button>
+        <button type="button" class="btn-primary btn-modal-save" id="btn-save-task">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-category">
+    <div class="modal-content">
+      <h2 class="modal-title" id="modal-category-title">New category</h2>
+      <label class="modal-label" id="modal-parent-label">Parent (optional)</label>
+      <select class="modal-select" id="modal-category-parent">
+        <option value="">— Top level —</option>
+      </select>
+      <label class="modal-label">Name</label>
+      <input type="text" class="modal-input" id="modal-category-input" placeholder="Category or subcategory name" />
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary btn-modal-cancel">Cancel</button>
+        <button type="button" class="btn-primary btn-modal-save" id="btn-save-category">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-add-user">
+    <div class="modal-content">
+      <h2 class="modal-title">Add user</h2>
+      <p class="modal-desc">Create an account. They can sign in with this email and password.</p>
+      <label class="modal-label">Email</label>
+      <input type="email" class="modal-input" id="modal-add-user-email" placeholder="colleague@company.com" />
+      <label class="modal-label">Password</label>
+      <input type="password" class="modal-input" id="modal-add-user-password" placeholder="••••••••" minlength="6" />
+      <label class="modal-label">Confirm password</label>
+      <input type="password" class="modal-input" id="modal-add-user-confirm" placeholder="••••••••" minlength="6" />
+      <p class="login-error" id="modal-add-user-error" role="alert"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary btn-modal-cancel btn-add-user-cancel">Cancel</button>
+        <button type="button" class="btn-primary btn-modal-save" id="btn-save-add-user">Add user</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-invite-user">
+    <div class="modal-content">
+      <h2 class="modal-title">Invite user</h2>
+      <p class="modal-desc" id="modal-invite-desc">Enter their email. We’ll generate a temporary password for you to share with them (e.g. by email or chat). They can change it via Forgot password after first login.</p>
+      <div id="modal-invite-form">
+        <label class="modal-label">Email</label>
+        <input type="email" class="modal-input" id="modal-invite-email" placeholder="colleague@company.com" />
+        <p class="login-error" id="modal-invite-error" role="alert"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary btn-modal-cancel btn-invite-user-cancel">Cancel</button>
+          <button type="button" class="btn-primary btn-modal-save" id="btn-send-invite">Send invite</button>
+        </div>
+      </div>
+      <div id="modal-invite-success" style="display: none;">
+        <p class="modal-invite-success-msg">Share with <strong id="modal-invite-success-email"></strong>:</p>
+        <p class="modal-invite-success-pw">Sign in at this dashboard. Temporary password: <code id="modal-invite-success-password"></code></p>
+        <button type="button" class="btn-secondary" id="btn-copy-invite">Copy to clipboard</button>
+        <div class="modal-actions" style="margin-top: 16px;">
+          <button type="button" class="btn-primary btn-modal-cancel" id="btn-close-invite">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
