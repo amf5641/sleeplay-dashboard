@@ -13,10 +13,31 @@ const ZOOM_FACTOR = 0.08;
 
 interface Person { id: string; name: string; title: string; location: string; managerId: string | null; photo: string | null }
 
-function OrgNode({ person, people, onEdit, onDelete }: { person: Person; people: Person[]; onEdit: (p: Person) => void; onDelete: (id: string) => void }) {
+const LINE = "#b8aed5";
+const VGAP = 24;
+const CHILD_GAP = 36;
+
+function Dot() {
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: 12, height: 12, zIndex: 2, margin: "-1px 0" }}>
+      <div style={{ width: 10, height: 10, borderRadius: "50%", border: `2px solid ${LINE}`, backgroundColor: "#fff" }} />
+    </div>
+  );
+}
+
+function OrgNode({ person, people, onEdit, onDelete, isChild }: { person: Person; people: Person[]; onEdit: (p: Person) => void; onDelete: (id: string) => void; isChild?: boolean }) {
   const reports = people.filter((p) => p.managerId === person.id);
   return (
     <div className="flex flex-col items-center">
+      {/* Incoming connector from parent's horizontal bar */}
+      {isChild && (
+        <>
+          <div style={{ width: 2, height: VGAP, backgroundColor: LINE }} />
+          <Dot />
+        </>
+      )}
+
+      {/* Person card */}
       <div
         className="bg-white rounded-lg p-4 shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50 min-w-[180px] text-center cursor-pointer hover:shadow-[0_4px_34px_rgba(0,0,0,0.08)] transition-shadow"
         onClick={() => onEdit(person)}
@@ -32,17 +53,35 @@ function OrgNode({ person, people, onEdit, onDelete }: { person: Person; people:
         <div className="text-xs text-brand-gray">{person.title}</div>
         {person.location && <div className="text-xs text-brand-gray mt-0.5">{person.location}</div>}
       </div>
+
+      {/* Connectors to children */}
       {reports.length > 0 && (
         <>
-          <div className="w-0.5 h-6 bg-lavender" />
-          <div className="flex gap-8 relative">
+          {/* Vertical line down from card */}
+          <div style={{ width: 2, height: VGAP, backgroundColor: LINE }} />
+
+          {/* Junction dot below parent */}
+          <Dot />
+
+          {/* Children row with horizontal bar */}
+          <div className="relative" style={{ display: "flex", gap: CHILD_GAP }}>
+            {/* Horizontal connector spanning from center of first child to center of last child */}
             {reports.length > 1 && (
-              <div className="absolute top-0 h-0.5 bg-lavender" style={{ left: "50%", right: "50%", transform: `translateX(-${(reports.length - 1) * 50}%)`, width: `${(reports.length - 1) * 100}%`, marginLeft: `-${(reports.length - 1) * 50}%` }} />
+              <div
+                className="absolute pointer-events-none"
+                style={{
+                  top: 0,
+                  height: 2,
+                  backgroundColor: LINE,
+                  left: `calc(100% / ${reports.length} / 2)`,
+                  right: `calc(100% / ${reports.length} / 2)`,
+                }}
+              />
             )}
+
             {reports.map((r) => (
               <div key={r.id} className="flex flex-col items-center">
-                <div className="w-0.5 h-6 bg-lavender" />
-                <OrgNode person={r} people={people} onEdit={onEdit} onDelete={onDelete} />
+                <OrgNode person={r} people={people} onEdit={onEdit} onDelete={onDelete} isChild />
               </div>
             ))}
           </div>
