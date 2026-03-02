@@ -7,6 +7,10 @@ import ConfirmDialog from "@/components/confirm-dialog";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 3;
+const ZOOM_FACTOR = 0.08;
+
 interface Person { id: string; name: string; title: string; location: string; managerId: string | null; photo: string | null }
 
 function OrgNode({ person, people, onEdit, onDelete }: { person: Person; people: Person[]; onEdit: (p: Person) => void; onDelete: (id: string) => void }) {
@@ -54,7 +58,9 @@ export default function OrgChartPage() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [animating, setAnimating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editPerson, setEditPerson] = useState<Person | null>(null);
@@ -63,10 +69,29 @@ export default function OrgChartPage() {
 
   const roots = people.filter((p) => !p.managerId);
 
+  // Zoom toward cursor position
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setZoom((z) => Math.min(2, Math.max(0.25, z + delta)));
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const cursorX = e.clientX - rect.left;
+    const cursorY = e.clientY - rect.top;
+
+    const direction = e.deltaY > 0 ? -1 : 1;
+
+    setZoom((prevZoom) => {
+      const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prevZoom * (1 + direction * ZOOM_FACTOR)));
+      const scale = newZoom / prevZoom;
+
+      setPan((prevPan) => ({
+        x: cursorX - scale * (cursorX - prevPan.x),
+        y: cursorY - scale * (cursorY - prevPan.y),
+      }));
+
+      return newZoom;
+    });
   }, []);
 
   useEffect(() => {
@@ -76,8 +101,70 @@ export default function OrgChartPage() {
     return () => el.removeEventListener("wheel", handleWheel);
   }, [handleWheel]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+
+      if (e.key === "=" || e.key === "+") {
+        e.preventDefault();
+        zoomBy(0.2);
+      } else if (e.key === "-") {
+        e.preventDefault();
+        zoomBy(-0.2);
+      } else if (e.key === "0") {
+        e.preventDefault();
+        resetZoom();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  const zoomBy = (delta: number) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    setZoom((prevZoom) => {
+      const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prevZoom + delta));
+      const scale = newZoom / prevZoom;
+      setPan((prevPan) => ({
+        x: centerX - scale * (centerX - prevPan.x),
+        y: centerY - scale * (centerY - prevPan.y),
+      }));
+      return newZoom;
+    });
+  };
+
+  const resetZoom = () => {
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    const prevZoom = zoom;
+    const newZoom = 1;
+    const scale = newZoom / prevZoom;
+
+    setAnimating(true);
+    setZoom(newZoom);
+    setPan((prevPan) => ({
+      x: centerX - scale * (centerX - prevPan.x),
+      y: centerY - scale * (centerY - prevPan.y),
+    }));
+    setTimeout(() => setAnimating(false), 300);
+  };
+
+  // Drag to pan
   const onMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
     setDragging(true);
+    setAnimating(false);
     setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
   };
   const onMouseMove = (e: React.MouseEvent) => {
@@ -85,6 +172,53 @@ export default function OrgChartPage() {
     setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
   };
   const onMouseUp = () => setDragging(false);
+
+  // Double-click to zoom in at point
+  const onDoubleClick = (e: React.MouseEvent) => {
+    const container = containerRef.current;
+    if (!container) return;
+    if ((e.target as HTMLElement).closest("[data-org-card]")) return;
+
+    const rect = container.getBoundingClientRect();
+    const cursorX = e.clientX - rect.left;
+    const cursorY = e.clientY - rect.top;
+
+    setAnimating(true);
+    setZoom((prevZoom) => {
+      const newZoom = Math.min(MAX_ZOOM, prevZoom * 1.5);
+      const scale = newZoom / prevZoom;
+      setPan((prevPan) => ({
+        x: cursorX - scale * (cursorX - prevPan.x),
+        y: cursorY - scale * (cursorY - prevPan.y),
+      }));
+      return newZoom;
+    });
+    setTimeout(() => setAnimating(false), 300);
+  };
+
+  // Smart fit to view
+  const fitToView = () => {
+    const container = containerRef.current;
+    const content = contentRef.current;
+    if (!container || !content) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const contentWidth = content.scrollWidth;
+    const contentHeight = content.scrollHeight;
+
+    const padding = 64;
+    const scaleX = (containerRect.width - padding * 2) / contentWidth;
+    const scaleY = (containerRect.height - padding * 2) / contentHeight;
+    const newZoom = Math.min(Math.max(MIN_ZOOM, Math.min(scaleX, scaleY)), 1.5);
+
+    const newPanX = (containerRect.width - contentWidth * newZoom) / 2;
+    const newPanY = (containerRect.height - contentHeight * newZoom) / 2;
+
+    setAnimating(true);
+    setZoom(newZoom);
+    setPan({ x: newPanX, y: newPanY });
+    setTimeout(() => setAnimating(false), 300);
+  };
 
   const openAdd = () => {
     setEditPerson(null);
@@ -114,8 +248,6 @@ export default function OrgChartPage() {
     mutate();
   };
 
-  const fitToView = () => { setZoom(0.8); setPan({ x: 0, y: 0 }); };
-
   return (
     <>
       <Topbar
@@ -123,27 +255,45 @@ export default function OrgChartPage() {
         actions={
           <div className="flex gap-2">
             <button onClick={fitToView} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">Fit</button>
-            <button onClick={() => setZoom((z) => Math.min(2, z + 0.2))} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">+</button>
-            <button onClick={() => setZoom((z) => Math.max(0.25, z - 0.2))} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">-</button>
+            <button onClick={() => zoomBy(0.2)} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">+</button>
+            <button onClick={() => zoomBy(-0.2)} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">-</button>
             <button onClick={openAdd} className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue transition-colors">+ Add Person</button>
           </div>
         }
       />
       <div
         ref={containerRef}
-        className="flex-1 overflow-hidden cursor-grab active:cursor-grabbing bg-white-smoke"
+        className="flex-1 overflow-hidden cursor-grab active:cursor-grabbing bg-white-smoke relative"
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
         onMouseLeave={onMouseUp}
+        onDoubleClick={onDoubleClick}
       >
-        <div className="inline-flex p-16" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "0 0" }}>
+        <div
+          ref={contentRef}
+          className="inline-flex p-16"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: "0 0",
+            transition: animating ? "transform 0.3s ease-out" : "none",
+          }}
+        >
           <div className="flex gap-16">
             {roots.map((r) => (
               <OrgNode key={r.id} person={r} people={people} onEdit={openEdit} onDelete={(id) => setConfirmDelete(id)} />
             ))}
           </div>
         </div>
+
+        {/* Zoom indicator */}
+        <button
+          onClick={resetZoom}
+          className="absolute bottom-4 left-4 px-3 py-1.5 text-xs font-medium rounded-md bg-white border border-platinum shadow-sm hover:bg-lavender/30 transition-colors select-none"
+          title="Click to reset to 100%"
+        >
+          {Math.round(zoom * 100)}%
+        </button>
       </div>
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editPerson ? "Edit Person" : "Add Person"}>
         <div className="space-y-3">
