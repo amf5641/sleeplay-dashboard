@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-ultra-violet: #1B0F3D;
+  --color-midnight-blue: #3A2180;
+  --color-royal-purple: #664FA6;
+  --color-pale-lavender: #CE9BE6;
+  --color-lavender: #DCD4F3;
+  --color-platinum: #E4E0DB;
+  --color-white-smoke: #F1F0EE;
+  --color-brand-black: #181818;
+  --color-brand-gray: #6B7280;
+  --color-priority-high: #EF4444;
+  --color-priority-medium: #F59E0B;
+  --color-priority-low: #10B981;
+  --font-heading: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--color-white-smoke);
+  color: var(--color-brand-black);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* Org chart connectors */
+.org-connector-v {
+  position: absolute;
+  left: 50%;
+  width: 2px;
+  background: var(--color-lavender);
+  transform: translateX(-50%);
+}
+
+.org-connector-h {
+  position: absolute;
+  height: 2px;
+  background: var(--color-lavender);
+  top: 0;
+}

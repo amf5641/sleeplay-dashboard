@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Category {
+  id       String     @id @default(cuid())
+  name     String
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+  sops     Sop[]
+}
+
+model Sop {
+  id                    String    @id @default(cuid())
+  title                 String    @default("Untitled SOP")
+  purpose               String    @default("")
+  steps                 String    @default("")
+  rolesResponsibilities String    @default("")
+  decisionPoints        String    @default("")
+  toolsSystems          String    @default("")
+  loomVideoUrl          String    @default("")
+  categoryId            String?
+  category              Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Person {
+  id                 String             @id @default(cuid())
+  name               String
+  title              String             @default("")
+  location           String             @default("")
+  managerId          String?
+  manager            Person?            @relation("OrgTree", fields: [managerId], references: [id], onDelete: SetNull)
+  reports            Person[]           @relation("OrgTree")
+  photo              String?
+  goals              String             @default("")
+  hobbies            String             @default("")
+  interests          String             @default("")
+  taskCollaborations TaskCollaborator[]
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tasks       Task[]
+}
+
+model Task {
+  id            String             @id @default(cuid())
+  projectId     String
+  project       Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title         String             @default("Untitled")
+  dueDate       String?
+  priority      String             @default("medium")
+  completed     Boolean            @default(false)
+  collaborators TaskCollaborator[]
+}
+
+model TaskCollaborator {
+  id       String @id @default(cuid())
+  taskId   String
+  personId String
+  task     Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, personId])
+}
+
+model ContentDocument {
+  id         String   @id @default(cuid())
+  title      String   @default("Untitled")
+  categoryId String
+  content    String   @default("")
+  updatedAt  DateTime @updatedAt
+}
