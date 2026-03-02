@@ -3,6 +3,6 @@
 # Bookmark: http://localhost:8080/
 
 cd "$(dirname "$0")"
-echo "Starting at http://localhost:8080/"
+echo "Starting at x"
 echo "Bookmark this URL so it never changes. Press Ctrl+C to stop."
 python3 -m http.server 8080
