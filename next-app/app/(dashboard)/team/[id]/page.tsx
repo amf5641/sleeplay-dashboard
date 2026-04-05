@@ -2,10 +2,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
+import { useSession } from "next-auth/react";
 import Topbar from "@/components/topbar";
 import ConfirmDialog from "@/components/confirm-dialog";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const ADMIN_EMAIL = "admin@sleeplay.com";
 
 interface Person { id: string; name: string; title: string; location: string; photo: string | null; goals: string; hobbies: string; interests: string }
 
@@ -35,6 +37,8 @@ function resizeImage(file: File, maxSize: number): Promise<string> {
 export default function TeamMemberPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.email === ADMIN_EMAIL;
   const { data: person, mutate } = useSWR<Person>(`/api/people/${id}`, fetcher);
   const [goals, setGoals] = useState("");
   const [hobbies, setHobbies] = useState("");
@@ -79,7 +83,7 @@ export default function TeamMemberPage() {
         title=""
         actions={
           <div className="flex gap-3">
-            <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 text-sm rounded bg-red-50 text-red-700 hover:bg-red-100">Delete</button>
+            {isAdmin && <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 text-sm rounded bg-red-50 text-red-700 hover:bg-red-100">Delete</button>}
             <button onClick={() => { save(); router.push("/team"); }} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">Save & Back</button>
           </div>
         }

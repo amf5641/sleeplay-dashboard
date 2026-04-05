@@ -60,6 +60,9 @@ export async function DELETE(
   const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (session.user?.email !== "admin@sleeplay.com") {
+    return Response.json({ error: "Only admin can delete team members" }, { status: 403 });
+  }
 
   // Set managerId to null on direct reports
   await prisma.person.updateMany({

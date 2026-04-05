@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import Image from "next/image";
 
 const navItems = [
@@ -16,6 +16,7 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   return (
     <aside className="w-60 bg-ultra-violet text-white flex flex-col h-screen sticky top-0 shrink-0">
@@ -40,6 +41,9 @@ export default function Sidebar() {
         })}
       </nav>
       <div className="px-5 py-4 border-t border-white/10">
+        {session?.user?.email && (
+          <p className="text-xs text-white/40 mb-2 truncate">{session.user.email}</p>
+        )}
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           className="text-sm text-white/60 hover:text-white transition-colors"
