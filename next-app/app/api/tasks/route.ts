@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
     data: {
       projectId: body.projectId,
       title: body.title ?? "Untitled",
+      description: body.description ?? "",
       dueDate: body.dueDate ?? null,
       priority: body.priority ?? "medium",
       status: body.status ?? "On Track",

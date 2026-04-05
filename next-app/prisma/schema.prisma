@@ -75,6 +75,7 @@ model Task {
   projectId     String
   project       Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   title         String             @default("Untitled")
+  description   String             @default("")
   dueDate       String?
   priority      String             @default("medium")
   status        String             @default("On Track")
