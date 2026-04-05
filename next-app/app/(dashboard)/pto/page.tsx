@@ -40,6 +40,13 @@ interface PtoBalance {
   sickRemaining: number;
 }
 
+interface AllBalance extends PtoBalance {
+  personId: string;
+  name: string;
+  title: string;
+  photo: string | null;
+}
+
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
   approved: "bg-green-100 text-green-800",
@@ -89,6 +96,11 @@ export default function PtoPage() {
     fetcher
   );
 
+  const { data: allBalances = [], mutate: mutateAllBalances } = useSWR<AllBalance[]>(
+    isAdmin ? `/api/pto/balance?all=true` : null,
+    fetcher
+  );
+
   useEffect(() => {
     if (!isAdmin && myPerson && !form.personId) {
       setForm((f) => ({ ...f, personId: myPerson.id }));
@@ -113,6 +125,7 @@ export default function PtoPage() {
       setForm({ personId: isAdmin ? "" : (myPerson?.id ?? ""), type: "vacation", startDate: "", endDate: "", note: "" });
       mutate();
       mutateBalance();
+      mutateAllBalances();
     }
   };
 
@@ -125,6 +138,7 @@ export default function PtoPage() {
     if (res.ok) {
       mutate();
       mutateBalance();
+      mutateAllBalances();
     }
   };
 
@@ -133,6 +147,7 @@ export default function PtoPage() {
     if (res.ok) {
       mutate();
       mutateBalance();
+      mutateAllBalances();
     }
   };
 
@@ -154,6 +169,68 @@ export default function PtoPage() {
         }
       />
       <div className="p-6">
+        {isAdmin && allBalances.length > 0 && (
+          <div className="bg-white rounded-lg shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50 mb-6 overflow-hidden">
+            <div className="px-5 py-3 border-b border-platinum bg-white-smoke">
+              <h2 className="text-sm font-semibold font-heading text-brand-black">Employee PTO Balances</h2>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-platinum text-left text-xs text-brand-gray">
+                  <th className="px-5 py-2.5 font-medium">Employee</th>
+                  <th className="px-5 py-2.5 font-medium text-center">Vacation Used</th>
+                  <th className="px-5 py-2.5 font-medium text-center">Vacation Left</th>
+                  <th className="px-5 py-2.5 font-medium text-center">Sick Used</th>
+                  <th className="px-5 py-2.5 font-medium text-center">Sick Left</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allBalances.map((b) => (
+                  <tr key={b.personId} className="border-b border-platinum/50 last:border-0">
+                    <td className="px-5 py-2.5">
+                      <div className="flex items-center gap-2">
+                        {b.photo ? (
+                          <img src={b.photo} alt="" className="w-6 h-6 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-lavender text-midnight-blue flex items-center justify-center text-xs font-semibold">
+                            {b.name.charAt(0)}
+                          </div>
+                        )}
+                        <div>
+                          <span className="font-medium text-brand-black">{b.name}</span>
+                          {b.title && <span className="text-xs text-brand-gray ml-1.5">({b.title})</span>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-2.5 text-center">
+                      <span className="text-brand-black">{b.vacationUsed}</span>
+                      <span className="text-brand-gray"> / {b.vacationAllowance}</span>
+                    </td>
+                    <td className="px-5 py-2.5 text-center">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                        b.vacationRemaining <= 2 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-800"
+                      }`}>
+                        {b.vacationRemaining}
+                      </span>
+                    </td>
+                    <td className="px-5 py-2.5 text-center">
+                      <span className="text-brand-black">{b.sickUsed}</span>
+                      <span className="text-brand-gray"> / {b.sickAllowance}</span>
+                    </td>
+                    <td className="px-5 py-2.5 text-center">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                        b.sickRemaining <= 1 ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-800"
+                      }`}>
+                        {b.sickRemaining}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {!isAdmin && balance && (
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-white rounded-lg p-4 shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50">
