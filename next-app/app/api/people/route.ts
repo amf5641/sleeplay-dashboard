@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
   const person = await prisma.person.create({
     data: {
       name: body.name,
+      email: body.email || null,
       title: body.title ?? "",
       location: body.location ?? "",
       managerId: body.managerId ?? null,

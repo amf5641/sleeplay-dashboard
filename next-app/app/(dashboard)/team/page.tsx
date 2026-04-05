@@ -1,18 +1,53 @@
 "use client";
+import { useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import Topbar from "@/components/topbar";
+import Modal from "@/components/modal";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const ADMIN_EMAIL = "admin@sleeplay.com";
 
 interface Person { id: string; name: string; title: string; location: string; photo: string | null }
 
 export default function TeamPage() {
-  const { data: people = [] } = useSWR<Person[]>("/api/people", fetcher);
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.email === ADMIN_EMAIL;
+  const { data: people = [], mutate } = useSWR<Person[]>("/api/people", fetcher);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", title: "", location: "", email: "" });
+
+  const createPerson = async () => {
+    if (!form.name) return;
+    const res = await fetch("/api/people", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    if (res.ok) {
+      setModalOpen(false);
+      setForm({ name: "", title: "", location: "", email: "" });
+      mutate();
+    }
+  };
 
   return (
     <>
-      <Topbar title="Meet the Team" count={people.length} />
+      <Topbar
+        title="Meet the Team"
+        count={people.length}
+        actions={
+          isAdmin ? (
+            <button
+              onClick={() => setModalOpen(true)}
+              className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue transition-colors"
+            >
+              + Add Member
+            </button>
+          ) : undefined
+        }
+      />
       <div className="p-6">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
           {people.map((p) => (
@@ -35,6 +70,59 @@ export default function TeamPage() {
           ))}
         </div>
       </div>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Team Member">
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-brand-gray mb-1">Name</label>
+            <input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Full name"
+              className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-brand-gray mb-1">Title</label>
+            <input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="Job title"
+              className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-brand-gray mb-1">Location</label>
+            <input
+              value={form.location}
+              onChange={(e) => setForm({ ...form, location: e.target.value })}
+              placeholder="City, Country"
+              className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-brand-gray mb-1">Email</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="name@sleeplay.com"
+              className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 mt-4">
+          <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
+          <button
+            onClick={createPerson}
+            disabled={!form.name}
+            className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Add
+          </button>
+        </div>
+      </Modal>
     </>
   );
 }
