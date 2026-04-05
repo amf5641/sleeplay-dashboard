@@ -40,6 +40,8 @@ export async function POST(request: NextRequest) {
     data: {
       name: body.name,
       description: body.description ?? "",
+      status: body.status ?? "On Track",
+      notes: body.notes ?? "",
     },
   });
 

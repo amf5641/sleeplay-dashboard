@@ -9,12 +9,21 @@ import PriorityBadge from "@/components/priority-badge";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+const STATUS_OPTIONS = ["On Track", "Slightly Off", "Off Track", "On Hold", "Done"] as const;
+const statusColors: Record<string, string> = {
+  "On Track": "bg-emerald-100 text-emerald-700",
+  "Slightly Off": "bg-amber-100 text-amber-700",
+  "Off Track": "bg-red-100 text-red-700",
+  "On Hold": "bg-gray-100 text-gray-600",
+  "Done": "bg-blue-100 text-blue-700",
+};
+
 interface Person { id: string; name: string }
 interface Task {
   id: string; title: string; dueDate: string | null; priority: string; completed: boolean;
   collaborators: { person: Person }[];
 }
-interface Project { id: string; name: string; description: string; tasks: Task[] }
+interface Project { id: string; name: string; description: string; status: string; notes: string; tasks: Task[] }
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -103,6 +112,36 @@ export default function ProjectDetailPage() {
           </div>
         }
       />
+
+      <div className="px-6 pt-4 pb-2 flex items-center gap-4 border-b border-platinum/50">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-brand-gray">Status:</span>
+          <select
+            value={project.status}
+            onChange={async (e) => {
+              await fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: e.target.value }) });
+              mutate();
+            }}
+            className={`px-2 py-0.5 text-xs font-medium rounded border-0 cursor-pointer ${statusColors[project.status] || "bg-gray-100 text-gray-600"}`}
+          >
+            {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div className="flex-1 flex items-center gap-2">
+          <span className="text-xs text-brand-gray whitespace-nowrap">Notes:</span>
+          <input
+            defaultValue={project.notes}
+            onBlur={async (e) => {
+              if (e.target.value !== project.notes) {
+                await fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: e.target.value }) });
+                mutate();
+              }
+            }}
+            placeholder="Add notes..."
+            className="flex-1 px-2 py-1 text-xs border border-transparent hover:border-platinum focus:border-royal-purple rounded focus:outline-none bg-transparent"
+          />
+        </div>
+      </div>
 
       {view === "list" ? (
         <div className="flex-1 overflow-y-auto p-6">
