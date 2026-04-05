@@ -10,6 +10,7 @@ const navItems = [
   { href: "/org-chart", label: "Org Chart", icon: "🏢" },
   { href: "/team", label: "Meet the Team", icon: "👥" },
   { href: "/projects", label: "Projects", icon: "📁" },
+  { href: "/pto", label: "PTO", icon: "🏖️" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 

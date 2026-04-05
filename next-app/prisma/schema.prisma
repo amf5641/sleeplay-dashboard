@@ -52,6 +52,8 @@ model Person {
   hobbies            String             @default("")
   interests          String             @default("")
   taskCollaborations TaskCollaborator[]
+  ptoRequests        PtoRequest[]       @relation("PtoRequests")
+  ptoReviews         PtoRequest[]       @relation("PtoReviews")
 }
 
 model Project {
@@ -82,6 +84,22 @@ model TaskCollaborator {
   person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, personId])
+}
+
+model PtoRequest {
+  id         String   @id @default(cuid())
+  personId   String
+  person     Person   @relation("PtoRequests", fields: [personId], references: [id], onDelete: Cascade)
+  type       String   @default("vacation")
+  startDate  DateTime
+  endDate    DateTime
+  days       Int
+  note       String   @default("")
+  status     String   @default("pending")
+  reviewerId String?
+  reviewer   Person?  @relation("PtoReviews", fields: [reviewerId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model ContentDocument {
