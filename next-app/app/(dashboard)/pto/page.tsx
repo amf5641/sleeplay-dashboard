@@ -183,28 +183,30 @@ export default function PtoPage() {
                   </p>
                 )}
 
-                {req.status === "pending" && (
-                  <div className="flex gap-2 mt-3 pt-3 border-t border-platinum">
-                    <button
-                      onClick={() => updateStatus(req.id, "approved")}
-                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => updateStatus(req.id, "rejected")}
-                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                    >
-                      Reject
-                    </button>
-                    <button
-                      onClick={() => deleteRequest(req.id)}
-                      className="px-3 py-1.5 text-xs font-medium rounded bg-platinum text-brand-gray hover:bg-lavender transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
+                <div className="flex gap-2 mt-3 pt-3 border-t border-platinum">
+                  {req.status === "pending" && (
+                    <>
+                      <button
+                        onClick={() => updateStatus(req.id, "approved")}
+                        className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => updateStatus(req.id, "rejected")}
+                        className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => deleteRequest(req.id)}
+                    className="px-3 py-1.5 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>

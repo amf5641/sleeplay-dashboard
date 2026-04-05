@@ -27,12 +27,6 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
 
   const { id } = await params;
 
-  const existing = await prisma.ptoRequest.findUnique({ where: { id } });
-  if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
-  if (existing.status !== "pending") {
-    return Response.json({ error: "Can only delete pending requests" }, { status: 400 });
-  }
-
   await prisma.ptoRequest.delete({ where: { id } });
   return Response.json({ ok: true });
 }
