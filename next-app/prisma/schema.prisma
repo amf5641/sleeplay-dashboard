@@ -52,6 +52,8 @@ model Person {
   goals              String             @default("")
   hobbies            String             @default("")
   interests          String             @default("")
+  vacationAllowance  Int                @default(10)
+  sickAllowance      Int                @default(5)
   taskCollaborations TaskCollaborator[]
   ptoRequests        PtoRequest[]       @relation("PtoRequests")
   ptoReviews         PtoRequest[]       @relation("PtoReviews")

@@ -31,6 +31,15 @@ interface PtoRequest {
   createdAt: string;
 }
 
+interface PtoBalance {
+  vacationAllowance: number;
+  sickAllowance: number;
+  vacationUsed: number;
+  sickUsed: number;
+  vacationRemaining: number;
+  sickRemaining: number;
+}
+
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
   approved: "bg-green-100 text-green-800",
@@ -73,8 +82,13 @@ export default function PtoPage() {
   const { data: requests = [], mutate } = useSWR<PtoRequest[]>(`/api/pto?status=${filter}`, fetcher);
   const { data: people = [] } = useSWR<Person[]>("/api/people", fetcher);
 
-  // Non-admin: auto-select their own person record
   const myPerson = people.find((p) => p.email === userEmail);
+
+  const { data: balance, mutate: mutateBalance } = useSWR<PtoBalance>(
+    myPerson ? `/api/pto/balance?personId=${myPerson.id}` : null,
+    fetcher
+  );
+
   useEffect(() => {
     if (!isAdmin && myPerson && !form.personId) {
       setForm((f) => ({ ...f, personId: myPerson.id }));
@@ -98,6 +112,7 @@ export default function PtoPage() {
       setModalOpen(false);
       setForm({ personId: isAdmin ? "" : (myPerson?.id ?? ""), type: "vacation", startDate: "", endDate: "", note: "" });
       mutate();
+      mutateBalance();
     }
   };
 
@@ -107,12 +122,18 @@ export default function PtoPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status, reviewerId }),
     });
-    if (res.ok) mutate();
+    if (res.ok) {
+      mutate();
+      mutateBalance();
+    }
   };
 
   const deleteRequest = async (id: string) => {
     const res = await fetch(`/api/pto/${id}`, { method: "DELETE" });
-    if (res.ok) mutate();
+    if (res.ok) {
+      mutate();
+      mutateBalance();
+    }
   };
 
   return (
@@ -133,6 +154,49 @@ export default function PtoPage() {
         }
       />
       <div className="p-6">
+        {!isAdmin && balance && (
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-white rounded-lg p-4 shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold font-heading text-brand-black">Vacation Days</h3>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColors.vacation}`}>
+                  {balance.vacationRemaining} remaining
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-2 bg-platinum rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all"
+                    style={{ width: `${Math.max(0, (balance.vacationRemaining / balance.vacationAllowance) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-xs text-brand-gray whitespace-nowrap">
+                  {balance.vacationUsed} / {balance.vacationAllowance} used
+                </span>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold font-heading text-brand-black">Sick Days</h3>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColors.sick}`}>
+                  {balance.sickRemaining} remaining
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-2 bg-platinum rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-orange-500 rounded-full transition-all"
+                    style={{ width: `${Math.max(0, (balance.sickRemaining / balance.sickAllowance) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-xs text-brand-gray whitespace-nowrap">
+                  {balance.sickUsed} / {balance.sickAllowance} used
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-2 mb-6">
           {["all", "pending", "approved", "rejected"].map((f) => (
             <button
