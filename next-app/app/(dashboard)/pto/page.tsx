@@ -1,17 +1,20 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useSWR from "swr";
+import { useSession } from "next-auth/react";
 import Topbar from "@/components/topbar";
 import Modal from "@/components/modal";
 import EmptyState from "@/components/empty-state";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const ADMIN_EMAIL = "admin@sleeplay.com";
 
 interface Person {
   id: string;
   name: string;
   title: string;
   photo: string | null;
+  email: string | null;
 }
 
 interface PtoRequest {
@@ -58,6 +61,10 @@ function formatDate(iso: string) {
 }
 
 export default function PtoPage() {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.email === ADMIN_EMAIL;
+  const userEmail = session?.user?.email;
+
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -65,6 +72,14 @@ export default function PtoPage() {
 
   const { data: requests = [], mutate } = useSWR<PtoRequest[]>(`/api/pto?status=${filter}`, fetcher);
   const { data: people = [] } = useSWR<Person[]>("/api/people", fetcher);
+
+  // Non-admin: auto-select their own person record
+  const myPerson = people.find((p) => p.email === userEmail);
+  useEffect(() => {
+    if (!isAdmin && myPerson && !form.personId) {
+      setForm((f) => ({ ...f, personId: myPerson.id }));
+    }
+  }, [isAdmin, myPerson, form.personId]);
 
   const filtered = requests.filter(
     (r) => r.person.name.toLowerCase().includes(search.toLowerCase())
@@ -81,7 +96,7 @@ export default function PtoPage() {
     });
     if (res.ok) {
       setModalOpen(false);
-      setForm({ personId: "", type: "vacation", startDate: "", endDate: "", note: "" });
+      setForm({ personId: isAdmin ? "" : (myPerson?.id ?? ""), type: "vacation", startDate: "", endDate: "", note: "" });
       mutate();
     }
   };
@@ -183,30 +198,32 @@ export default function PtoPage() {
                   </p>
                 )}
 
-                <div className="flex gap-2 mt-3 pt-3 border-t border-platinum">
-                  {req.status === "pending" && (
-                    <>
-                      <button
-                        onClick={() => updateStatus(req.id, "approved")}
-                        className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => updateStatus(req.id, "rejected")}
-                        className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={() => deleteRequest(req.id)}
-                    className="px-3 py-1.5 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                  >
-                    Delete
-                  </button>
-                </div>
+                {isAdmin && (
+                  <div className="flex gap-2 mt-3 pt-3 border-t border-platinum">
+                    {req.status === "pending" && (
+                      <>
+                        <button
+                          onClick={() => updateStatus(req.id, "approved")}
+                          className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => updateStatus(req.id, "rejected")}
+                          className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => deleteRequest(req.id)}
+                      className="px-3 py-1.5 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -215,19 +232,31 @@ export default function PtoPage() {
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="New PTO Request">
         <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-brand-gray mb-1">Employee</label>
-            <select
-              value={form.personId}
-              onChange={(e) => setForm({ ...form, personId: e.target.value })}
-              className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple bg-white"
-            >
-              <option value="">Select employee...</option>
-              {people.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
+          {isAdmin ? (
+            <div>
+              <label className="block text-xs font-medium text-brand-gray mb-1">Employee</label>
+              <select
+                value={form.personId}
+                onChange={(e) => setForm({ ...form, personId: e.target.value })}
+                className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple bg-white"
+              >
+                <option value="">Select employee...</option>
+                {people.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-medium text-brand-gray mb-1">Employee</label>
+              <input
+                type="text"
+                value={myPerson?.name ?? ""}
+                disabled
+                className="w-full px-3 py-2 border border-platinum rounded text-sm bg-white-smoke text-brand-gray"
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-medium text-brand-gray mb-1">Type</label>

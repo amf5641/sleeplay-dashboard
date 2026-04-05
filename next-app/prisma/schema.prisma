@@ -42,6 +42,7 @@ model Sop {
 model Person {
   id                 String             @id @default(cuid())
   name               String
+  email              String?            @unique
   title              String             @default("")
   location           String             @default("")
   managerId          String?
