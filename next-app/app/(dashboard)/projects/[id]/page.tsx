@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import Topbar from "@/components/topbar";
@@ -17,6 +17,72 @@ const statusColors: Record<string, string> = {
   "On Hold": "bg-gray-100 text-gray-600",
   "Done": "bg-blue-100 text-blue-700",
 };
+
+function RichTextEditor({ value, onChange, placeholder }: { value: string; onChange: (html: string) => void; placeholder?: string }) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const savedValue = useRef(value);
+
+  const handleBlur = useCallback(() => {
+    const html = editorRef.current?.innerHTML || "";
+    const cleaned = html === `<br>` || html === `<div><br></div>` ? "" : html;
+    if (cleaned !== savedValue.current) {
+      savedValue.current = cleaned;
+      onChange(cleaned);
+    }
+  }, [onChange]);
+
+  const exec = (cmd: string) => {
+    document.execCommand(cmd, false);
+    editorRef.current?.focus();
+  };
+
+  return (
+    <div className="border border-platinum rounded focus-within:border-royal-purple">
+      <div className="flex gap-1 px-2 py-1.5 border-b border-platinum bg-white-smoke/50">
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); exec("bold"); }}
+          className="px-2 py-0.5 text-sm font-bold rounded hover:bg-platinum"
+          title="Bold (Ctrl+B)"
+        >B</button>
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); exec("italic"); }}
+          className="px-2 py-0.5 text-sm italic rounded hover:bg-platinum"
+          title="Italic (Ctrl+I)"
+        >I</button>
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); exec("underline"); }}
+          className="px-2 py-0.5 text-sm underline rounded hover:bg-platinum"
+          title="Underline (Ctrl+U)"
+        >U</button>
+        <div className="w-px bg-platinum mx-1" />
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); exec("insertUnorderedList"); }}
+          className="px-2 py-0.5 text-sm rounded hover:bg-platinum"
+          title="Bullet list"
+        >&#8226; List</button>
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); exec("insertOrderedList"); }}
+          className="px-2 py-0.5 text-sm rounded hover:bg-platinum"
+          title="Numbered list"
+        >1. List</button>
+      </div>
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        onBlur={handleBlur}
+        dangerouslySetInnerHTML={{ __html: value }}
+        data-placeholder={placeholder}
+        className="min-h-[160px] px-3 py-2 text-sm focus:outline-none [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-brand-gray/50"
+      />
+    </div>
+  );
+}
 
 interface Person { id: string; name: string }
 interface Task {
@@ -325,13 +391,11 @@ export default function ProjectDetailPage() {
               {/* Description */}
               <div className="mb-6">
                 <h3 className="text-sm font-semibold text-brand-black mb-2">Description</h3>
-                <textarea
-                  defaultValue={activeTask.description}
-                  key={activeTask.id + "-desc-" + activeTask.description}
-                  onBlur={(e) => { if (e.target.value !== activeTask.description) updateTaskField(activeTask.id, "description", e.target.value); }}
+                <RichTextEditor
+                  key={activeTask.id + "-desc"}
+                  value={activeTask.description}
+                  onChange={(html) => updateTaskField(activeTask.id, "description", html)}
                   placeholder="Add a description..."
-                  rows={8}
-                  className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y bg-white"
                 />
               </div>
 
