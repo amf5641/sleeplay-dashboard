@@ -132,9 +132,8 @@ export default function TeamMemberPage() {
         </div>
 
         {[
-          { label: "Goals", value: goals, set: setGoals },
-          { label: "Hobbies", value: hobbies, set: setHobbies },
-          { label: "Interests", value: interests, set: setInterests },
+          { label: "About Me", value: goals, set: setGoals },
+          { label: "Hobbies/Interests", value: hobbies, set: setHobbies },
         ].map((field) => (
           <div key={field.label} className="mb-6">
             <label className="block text-sm font-medium text-brand-gray mb-2">{field.label}</label>
