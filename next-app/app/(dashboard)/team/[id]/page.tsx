@@ -9,7 +9,8 @@ import ConfirmDialog from "@/components/confirm-dialog";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const ADMIN_EMAIL = "admin@sleeplay.com";
 
-interface Person { id: string; name: string; title: string; location: string; photo: string | null; goals: string; hobbies: string; interests: string }
+interface Person { id: string; name: string; title: string; location: string; photo: string | null; goals: string; hobbies: string; interests: string; managerId: string | null }
+interface PersonSummary { id: string; name: string }
 
 function resizeImage(file: File, maxSize: number): Promise<string> {
   return new Promise((resolve) => {
@@ -40,9 +41,11 @@ export default function TeamMemberPage() {
   const { data: session } = useSession();
   const isAdmin = session?.user?.email === ADMIN_EMAIL;
   const { data: person, mutate } = useSWR<Person>(`/api/people/${id}`, fetcher);
+  const { data: allPeople = [] } = useSWR<PersonSummary[]>("/api/people", fetcher);
   const [goals, setGoals] = useState("");
   const [hobbies, setHobbies] = useState("");
   const [interests, setInterests] = useState("");
+  const [managerId, setManagerId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -51,6 +54,7 @@ export default function TeamMemberPage() {
       setGoals(person.goals);
       setHobbies(person.hobbies);
       setInterests(person.interests);
+      setManagerId(person.managerId);
     }
   }, [person]);
 
@@ -58,7 +62,7 @@ export default function TeamMemberPage() {
     await fetch(`/api/people/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ goals, hobbies, interests }),
+      body: JSON.stringify({ goals, hobbies, interests, managerId }),
     });
     mutate();
   };
@@ -109,6 +113,24 @@ export default function TeamMemberPage() {
             {person.location && <p className="text-sm text-brand-gray">{person.location}</p>}
           </div>
         </div>
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-brand-gray mb-2">Reports to</label>
+          {isAdmin ? (
+            <select
+              value={managerId ?? ""}
+              onChange={(e) => setManagerId(e.target.value || null)}
+              className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple bg-white"
+            >
+              <option value="">None (top-level)</option>
+              {allPeople.filter((p) => p.id !== id).map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          ) : (
+            <p className="text-sm">{allPeople.find((p) => p.id === managerId)?.name ?? "None"}</p>
+          )}
+        </div>
+
         {[
           { label: "Goals", value: goals, set: setGoals },
           { label: "Hobbies", value: hobbies, set: setHobbies },

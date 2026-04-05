@@ -16,18 +16,18 @@ export default function TeamPage() {
   const isAdmin = session?.user?.email === ADMIN_EMAIL;
   const { data: people = [], mutate } = useSWR<Person[]>("/api/people", fetcher);
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", title: "", location: "", email: "" });
+  const [form, setForm] = useState({ name: "", title: "", location: "", email: "", managerId: "" });
 
   const createPerson = async () => {
     if (!form.name) return;
     const res = await fetch("/api/people", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, managerId: form.managerId || null }),
     });
     if (res.ok) {
       setModalOpen(false);
-      setForm({ name: "", title: "", location: "", email: "" });
+      setForm({ name: "", title: "", location: "", email: "", managerId: "" });
       mutate();
     }
   };
@@ -110,6 +110,19 @@ export default function TeamPage() {
               placeholder="name@sleeplay.com"
               className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple"
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-brand-gray mb-1">Reports to</label>
+            <select
+              value={form.managerId}
+              onChange={(e) => setForm({ ...form, managerId: e.target.value })}
+              className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple bg-white"
+            >
+              <option value="">None (top-level)</option>
+              {people.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
           </div>
         </div>
         <div className="flex justify-end gap-3 mt-4">
