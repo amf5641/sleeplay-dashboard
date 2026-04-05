@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import Topbar from "@/components/topbar";
+import ConfirmDialog from "@/components/confirm-dialog";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -39,6 +40,7 @@ export default function TeamMemberPage() {
   const [hobbies, setHobbies] = useState("");
   const [interests, setInterests] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (person) {
@@ -77,6 +79,7 @@ export default function TeamMemberPage() {
         title=""
         actions={
           <div className="flex gap-3">
+            <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 text-sm rounded bg-red-50 text-red-700 hover:bg-red-100">Delete</button>
             <button onClick={() => { save(); router.push("/team"); }} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">Save & Back</button>
           </div>
         }
@@ -118,6 +121,16 @@ export default function TeamMemberPage() {
           </div>
         ))}
       </div>
+      <ConfirmDialog
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={async () => {
+          await fetch(`/api/people/${id}`, { method: "DELETE" });
+          router.push("/team");
+        }}
+        title="Delete Team Member"
+        message={`Are you sure you want to remove ${person.name}? This will also delete their PTO requests.`}
+      />
     </>
   );
 }
