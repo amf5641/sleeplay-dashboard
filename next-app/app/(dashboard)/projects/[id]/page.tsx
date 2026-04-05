@@ -20,7 +20,7 @@ const statusColors: Record<string, string> = {
 
 interface Person { id: string; name: string }
 interface Task {
-  id: string; title: string; dueDate: string | null; priority: string; completed: boolean;
+  id: string; title: string; dueDate: string | null; priority: string; status: string; notes: string; completed: boolean; createdAt: string;
   collaborators: { person: Person }[];
 }
 interface Project { id: string; name: string; description: string; status: string; notes: string; tasks: Task[] }
@@ -34,13 +34,13 @@ export default function ProjectDetailPage() {
   const [view, setView] = useState<"list" | "calendar">("list");
   const [taskModal, setTaskModal] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
-  const [taskForm, setTaskForm] = useState({ title: "", dueDate: "", priority: "medium", collaborators: [] as string[] });
+  const [taskForm, setTaskForm] = useState({ title: "", dueDate: "", priority: "medium", status: "On Track", notes: "", collaborators: [] as string[] });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [calMonth, setCalMonth] = useState(new Date());
 
   const openAddTask = () => {
     setEditTask(null);
-    setTaskForm({ title: "", dueDate: "", priority: "medium", collaborators: [] });
+    setTaskForm({ title: "", dueDate: "", priority: "medium", status: "On Track", notes: "", collaborators: [] });
     setTaskModal(true);
   };
 
@@ -50,6 +50,8 @@ export default function ProjectDetailPage() {
       title: task.title,
       dueDate: task.dueDate || "",
       priority: task.priority,
+      status: task.status,
+      notes: task.notes,
       collaborators: task.collaborators.map((c) => c.person.id),
     });
     setTaskModal(true);
@@ -113,36 +115,6 @@ export default function ProjectDetailPage() {
         }
       />
 
-      <div className="px-6 pt-4 pb-2 flex items-center gap-4 border-b border-platinum/50">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-brand-gray">Status:</span>
-          <select
-            value={project.status}
-            onChange={async (e) => {
-              await fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: e.target.value }) });
-              mutate();
-            }}
-            className={`px-2 py-0.5 text-xs font-medium rounded border-0 cursor-pointer ${statusColors[project.status] || "bg-gray-100 text-gray-600"}`}
-          >
-            {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div className="flex-1 flex items-center gap-2">
-          <span className="text-xs text-brand-gray whitespace-nowrap">Notes:</span>
-          <input
-            defaultValue={project.notes}
-            onBlur={async (e) => {
-              if (e.target.value !== project.notes) {
-                await fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: e.target.value }) });
-                mutate();
-              }
-            }}
-            placeholder="Add notes..."
-            className="flex-1 px-2 py-1 text-xs border border-transparent hover:border-platinum focus:border-royal-purple rounded focus:outline-none bg-transparent"
-          />
-        </div>
-      </div>
-
       {view === "list" ? (
         <div className="flex-1 overflow-y-auto p-6">
           <table className="w-full">
@@ -150,9 +122,12 @@ export default function ProjectDetailPage() {
               <tr className="text-left text-xs text-brand-gray border-b border-platinum">
                 <th className="pb-2 w-8"></th>
                 <th className="pb-2">Task</th>
+                <th className="pb-2 w-28">Created</th>
                 <th className="pb-2 w-32">Due Date</th>
                 <th className="pb-2 w-24">Priority</th>
+                <th className="pb-2 w-32">Status</th>
                 <th className="pb-2 w-40">Collaborators</th>
+                <th className="pb-2">Notes</th>
                 <th className="pb-2 w-16"></th>
               </tr>
             </thead>
@@ -165,10 +140,39 @@ export default function ProjectDetailPage() {
                   <td className={`py-2 text-sm cursor-pointer hover:text-royal-purple ${task.completed ? "line-through text-brand-gray" : ""}`} onClick={() => openEditTask(task)}>
                     {task.title}
                   </td>
+                  <td className="py-2 text-xs text-brand-gray whitespace-nowrap">
+                    {new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </td>
                   <td className="py-2 text-xs text-brand-gray">{task.dueDate || "—"}</td>
                   <td className="py-2"><PriorityBadge priority={task.priority} /></td>
+                  <td className="py-2">
+                    <select
+                      value={task.status}
+                      onChange={async (e) => {
+                        await fetch(`/api/tasks/${task.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: e.target.value }) });
+                        mutate();
+                      }}
+                      className={`px-2 py-0.5 text-xs font-medium rounded border-0 cursor-pointer ${statusColors[task.status] || "bg-gray-100 text-gray-600"}`}
+                    >
+                      {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </td>
                   <td className="py-2 text-xs text-brand-gray">
                     {task.collaborators.map((c) => c.person.name).join(", ") || "—"}
+                  </td>
+                  <td className="py-2">
+                    <input
+                      defaultValue={task.notes}
+                      key={task.id + task.notes}
+                      onBlur={async (e) => {
+                        if (e.target.value !== task.notes) {
+                          await fetch(`/api/tasks/${task.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: e.target.value }) });
+                          mutate();
+                        }
+                      }}
+                      placeholder="—"
+                      className="w-full px-1 py-0.5 text-xs border border-transparent hover:border-platinum focus:border-royal-purple rounded focus:outline-none bg-transparent"
+                    />
                   </td>
                   <td className="py-2">
                     <button onClick={() => deleteTask(task.id)} className="text-xs text-red-400 hover:text-red-600">Delete</button>
@@ -216,6 +220,13 @@ export default function ProjectDetailPage() {
             <option value="medium">Medium</option>
             <option value="low">Low</option>
           </select>
+          <div>
+            <label className="block text-sm text-brand-gray mb-1">Status</label>
+            <select value={taskForm.status} onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value })} className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple bg-white">
+              {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <textarea value={taskForm.notes} onChange={(e) => setTaskForm({ ...taskForm, notes: e.target.value })} placeholder="Notes (optional)" rows={2} className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y" />
           <div>
             <label className="block text-sm text-brand-gray mb-1">Collaborators</label>
             <div className="max-h-32 overflow-y-auto border border-platinum rounded p-2">

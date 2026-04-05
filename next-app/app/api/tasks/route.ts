@@ -15,6 +15,8 @@ export async function POST(request: NextRequest) {
       title: body.title ?? "Untitled",
       dueDate: body.dueDate ?? null,
       priority: body.priority ?? "medium",
+      status: body.status ?? "On Track",
+      notes: body.notes ?? "",
       collaborators: body.collaborators?.length
         ? {
             create: body.collaborators.map((personId: string) => ({
