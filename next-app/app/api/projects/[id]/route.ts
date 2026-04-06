@@ -38,7 +38,7 @@ export async function PUT(
   const body = await request.json();
   const data: Record<string, unknown> = {};
 
-  const fields = ["name", "description", "status", "notes"];
+  const fields = ["name", "description", "status", "notes", "sectionOrder"];
   for (const field of fields) {
     if (body[field] !== undefined) data[field] = body[field];
   }

@@ -89,7 +89,7 @@ interface Task {
   id: string; title: string; description: string; dueDate: string | null; priority: string; status: string; notes: string; completed: boolean; createdAt: string;
   collaborators: { person: Person }[];
 }
-interface Project { id: string; name: string; description: string; status: string; notes: string; tasks: Task[] }
+interface Project { id: string; name: string; description: string; status: string; notes: string; sectionOrder: string; tasks: Task[] }
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -155,6 +155,10 @@ export default function ProjectDetailPage() {
     return match ? match[1] : null;
   };
 
+  const savedOrder: string[] = (() => {
+    try { return JSON.parse(project.sectionOrder || "[]"); } catch { return []; }
+  })();
+
   const groupedTasks: { section: string | null; tasks: Task[] }[] = (() => {
     const groups = new Map<string | null, Task[]>();
     for (const task of project.tasks) {
@@ -162,8 +166,20 @@ export default function ProjectDetailPage() {
       if (!groups.has(section)) groups.set(section, []);
       groups.get(section)!.push(task);
     }
+    // Sort by saved order; sections not in savedOrder go to the end
+    const sectionNames = [...groups.keys()].filter((s) => s !== null) as string[];
+    const sorted: string[] = [];
+    for (const name of savedOrder) {
+      if (sectionNames.includes(name)) sorted.push(name);
+    }
+    for (const name of sectionNames) {
+      if (!sorted.includes(name)) sorted.push(name);
+    }
     const result: { section: string | null; tasks: Task[] }[] = [];
-    groups.forEach((tasks, section) => result.push({ section, tasks }));
+    for (const name of sorted) {
+      result.push({ section: name, tasks: groups.get(name)! });
+    }
+    if (groups.has(null)) result.push({ section: null, tasks: groups.get(null)! });
     return result;
   })();
 
@@ -176,6 +192,26 @@ export default function ProjectDetailPage() {
       else next.add(section);
       return next;
     });
+  };
+
+  const moveSectionUp = (section: string) => {
+    const sections = groupedTasks.filter((g) => g.section !== null).map((g) => g.section as string);
+    const idx = sections.indexOf(section);
+    if (idx <= 0) return;
+    [sections[idx - 1], sections[idx]] = [sections[idx], sections[idx - 1]];
+    const newOrder = JSON.stringify(sections);
+    fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sectionOrder: newOrder }) });
+    mutate();
+  };
+
+  const moveSectionDown = (section: string) => {
+    const sections = groupedTasks.filter((g) => g.section !== null).map((g) => g.section as string);
+    const idx = sections.indexOf(section);
+    if (idx < 0 || idx >= sections.length - 1) return;
+    [sections[idx], sections[idx + 1]] = [sections[idx + 1], sections[idx]];
+    const newOrder = JSON.stringify(sections);
+    fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sectionOrder: newOrder }) });
+    mutate();
   };
 
   // Calendar helpers
@@ -234,20 +270,38 @@ export default function ProjectDetailPage() {
                   return (
                     <React.Fragment key={sectionKey}>
                       {group.section && (
-                        <tr
-                          className="bg-white-smoke/70 cursor-pointer hover:bg-white-smoke border-b border-platinum"
-                          onClick={() => toggleSection(group.section!)}
-                        >
+                        <tr className="group bg-white-smoke/70 border-b border-platinum">
                           <td colSpan={9} className="py-2.5 px-2">
                             <div className="flex items-center gap-2">
-                              <svg
-                                className={`w-3.5 h-3.5 text-brand-gray transition-transform ${isCollapsed ? "" : "rotate-90"}`}
-                                fill="currentColor" viewBox="0 0 20 20"
+                              <div
+                                className="flex items-center gap-2 cursor-pointer flex-1"
+                                onClick={() => toggleSection(group.section!)}
                               >
-                                <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-                              </svg>
-                              <span className="font-semibold font-heading text-sm text-brand-black">{group.section}</span>
-                              <span className="text-xs text-brand-gray ml-1">{doneTasks}/{group.tasks.length}</span>
+                                <svg
+                                  className={`w-3.5 h-3.5 text-brand-gray transition-transform ${isCollapsed ? "" : "rotate-90"}`}
+                                  fill="currentColor" viewBox="0 0 20 20"
+                                >
+                                  <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                                </svg>
+                                <span className="font-semibold font-heading text-sm text-brand-black">{group.section}</span>
+                                <span className="text-xs text-brand-gray ml-1">{doneTasks}/{group.tasks.length}</span>
+                              </div>
+                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); moveSectionUp(group.section!); }}
+                                  className="p-0.5 text-brand-gray hover:text-brand-black rounded hover:bg-platinum"
+                                  title="Move up"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); moveSectionDown(group.section!); }}
+                                  className="p-0.5 text-brand-gray hover:text-brand-black rounded hover:bg-platinum"
+                                  title="Move down"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </button>
+                              </div>
                             </div>
                           </td>
                         </tr>
