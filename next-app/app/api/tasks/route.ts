@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
   // Notify assigned collaborators
   if (body.collaborators?.length) {
     const project = await prisma.project.findUnique({ where: { id: body.projectId }, select: { name: true } });
+    const parentTask = body.parentId ? await prisma.task.findUnique({ where: { id: body.parentId }, select: { id: true, title: true } }) : null;
     const people = await prisma.person.findMany({
       where: { id: { in: body.collaborators } },
       select: { email: true },
@@ -41,13 +42,19 @@ export async function POST(request: NextRequest) {
       if (!person.email) continue;
       const user = await prisma.user.findUnique({ where: { email: person.email } });
       if (user) {
+        // Build message: subtask → "task" in "parent task" in "project", or task → "task" in "project"
+        let message = `You were assigned "${task.title}"`;
+        if (parentTask) message += ` in "${parentTask.title}"`;
+        if (project) message += ` in "${project.name}"`;
+        // Link to the parent task so the detail panel opens showing subtasks
+        const linkTaskId = parentTask ? parentTask.id : task.id;
         await prisma.notification.create({
           data: {
             userId: user.id,
             type: "task_assigned",
-            title: "New task assigned",
-            message: `You were assigned "${task.title}"${project ? ` in ${project.name}` : ""}`,
-            linkUrl: `/projects/${body.projectId}?task=${task.id}`,
+            title: parentTask ? "New subtask assigned" : "New task assigned",
+            message,
+            linkUrl: `/projects/${body.projectId}?task=${linkTaskId}`,
           },
         });
       }

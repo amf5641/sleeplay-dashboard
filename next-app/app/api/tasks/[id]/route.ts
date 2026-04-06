@@ -61,8 +61,9 @@ export async function PUT(
 
     // Notify newly added collaborators
     if (newPersonIds.length > 0) {
-      const taskData = await prisma.task.findUnique({ where: { id }, select: { title: true, projectId: true } });
+      const taskData = await prisma.task.findUnique({ where: { id }, select: { title: true, projectId: true, parentId: true } });
       const project = taskData ? await prisma.project.findUnique({ where: { id: taskData.projectId }, select: { name: true } }) : null;
+      const parentTask = taskData?.parentId ? await prisma.task.findUnique({ where: { id: taskData.parentId }, select: { id: true, title: true } }) : null;
       const people = await prisma.person.findMany({
         where: { id: { in: newPersonIds } },
         select: { email: true },
@@ -71,13 +72,17 @@ export async function PUT(
         if (!person.email) continue;
         const user = await prisma.user.findUnique({ where: { email: person.email } });
         if (user) {
+          let message = `You were assigned "${taskData?.title}"`;
+          if (parentTask) message += ` in "${parentTask.title}"`;
+          if (project) message += ` in "${project.name}"`;
+          const linkTaskId = parentTask ? parentTask.id : id;
           await prisma.notification.create({
             data: {
               userId: user.id,
               type: "task_assigned",
-              title: "New task assigned",
-              message: `You were assigned "${taskData?.title}"${project ? ` in ${project.name}` : ""}`,
-              linkUrl: `/projects/${taskData?.projectId}?task=${id}`,
+              title: parentTask ? "New subtask assigned" : "New task assigned",
+              message,
+              linkUrl: `/projects/${taskData?.projectId}?task=${linkTaskId}`,
             },
           });
         }
