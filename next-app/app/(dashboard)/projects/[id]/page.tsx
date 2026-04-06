@@ -87,14 +87,17 @@ function RichTextEditor({ value, onChange, placeholder }: { value: string; onCha
 interface Person { id: string; name: string }
 interface AppUser { id: string; email: string }
 interface ProjectMember { id: string; user: AppUser }
+interface CustomField { id: string; name: string; type: string; options: string; position: number }
+interface TaskCustomFieldValue { id: string; taskId: string; customFieldId: string; value: string }
 interface Subtask {
   id: string; title: string; description: string; dueDate: string | null; priority: string; status: string; notes: string; completed: boolean; createdAt: string;
   collaborators: { person: Person }[];
+  customFieldValues: TaskCustomFieldValue[];
 }
 interface Task extends Subtask {
   subtasks: Subtask[];
 }
-interface Project { id: string; name: string; description: string; status: string; notes: string; sectionOrder: string; tasks: Task[]; members: ProjectMember[] }
+interface Project { id: string; name: string; description: string; status: string; notes: string; sectionOrder: string; tasks: Task[]; members: ProjectMember[]; customFields: CustomField[] }
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -120,6 +123,14 @@ export default function ProjectDetailPage() {
   const [confirmSectionDelete, setConfirmSectionDelete] = useState<string | null>(null);
   const [calMonth, setCalMonth] = useState(new Date());
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [addFieldModal, setAddFieldModal] = useState(false);
+  const [newFieldName, setNewFieldName] = useState("");
+  const [newFieldType, setNewFieldType] = useState<"text" | "single-select" | "multi-select">("text");
+  const [newFieldOptions, setNewFieldOptions] = useState<string[]>([]);
+  const [newFieldOptionInput, setNewFieldOptionInput] = useState("");
+  const [editFieldId, setEditFieldId] = useState<string | null>(null);
+  const [editFieldOptions, setEditFieldOptions] = useState<string[]>([]);
+  const [editFieldOptionInput, setEditFieldOptionInput] = useState("");
 
   // Default all sections to collapsed on first load, and auto-select task from URL
   useEffect(() => {
@@ -196,6 +207,49 @@ export default function ProjectDetailPage() {
   const removeMember = async (userId: string) => {
     await fetch(`/api/projects/${id}/members`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId }) });
     mutate();
+  };
+
+  const createCustomField = async () => {
+    const name = newFieldName.trim();
+    if (!name) return;
+    await fetch(`/api/projects/${id}/custom-fields`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, type: newFieldType, options: newFieldOptions }),
+    });
+    setAddFieldModal(false);
+    setNewFieldName("");
+    setNewFieldType("text");
+    setNewFieldOptions([]);
+    setNewFieldOptionInput("");
+    mutate();
+  };
+
+  const deleteCustomField = async (fieldId: string) => {
+    await fetch(`/api/custom-fields/${fieldId}`, { method: "DELETE" });
+    mutate();
+  };
+
+  const updateCustomFieldOptions = async (fieldId: string, options: string[]) => {
+    await fetch(`/api/custom-fields/${fieldId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ options }),
+    });
+    mutate();
+  };
+
+  const updateTaskCustomFieldValue = async (taskId: string, customFieldId: string, value: string) => {
+    await fetch(`/api/tasks/${taskId}/custom-field-values`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customFieldId, value }),
+    });
+    mutate();
+  };
+
+  const getFieldValue = (task: { customFieldValues: TaskCustomFieldValue[] }, fieldId: string): string => {
+    return task.customFieldValues?.find((v) => v.customFieldId === fieldId)?.value || "";
   };
 
   if (!project) return <div className="p-8 text-brand-gray">Loading...</div>;
@@ -375,8 +429,81 @@ export default function ProjectDetailPage() {
                   <th className="pb-2 w-32">Status</th>
                   <th className="pb-2 w-40">Collaborators</th>
                   <th className="pb-2">Notes</th>
+                  {(project.customFields || []).map((cf) => (
+                    <th key={cf.id} className="pb-2 w-36">
+                      <div className="group/cfh flex items-center gap-1">
+                        <span>{cf.name}</span>
+                        <button
+                          onClick={() => {
+                            if (editFieldId === cf.id) { setEditFieldId(null); return; }
+                            setEditFieldId(cf.id);
+                            try { setEditFieldOptions(JSON.parse(cf.options)); } catch { setEditFieldOptions([]); }
+                            setEditFieldOptionInput("");
+                          }}
+                          className="opacity-0 group-hover/cfh:opacity-100 p-0.5 rounded hover:bg-platinum text-brand-gray"
+                          title="Edit field"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                        <button
+                          onClick={() => deleteCustomField(cf.id)}
+                          className="opacity-0 group-hover/cfh:opacity-100 p-0.5 rounded hover:bg-red-50 text-brand-gray hover:text-red-500"
+                          title="Remove field"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    </th>
+                  ))}
+                  <th className="pb-2 w-10">
+                    <button
+                      onClick={() => setAddFieldModal(true)}
+                      className="p-1 rounded hover:bg-lavender text-brand-gray hover:text-royal-purple"
+                      title="Add custom field"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                    </button>
+                  </th>
                   <th className="pb-2 w-16"></th>
                 </tr>
+                {editFieldId && (() => {
+                  const cf = (project.customFields || []).find((f) => f.id === editFieldId);
+                  if (!cf || cf.type === "text") return null;
+                  return (
+                    <tr className="border-b border-platinum bg-lavender/20">
+                      <td colSpan={9 + (project.customFields || []).length} className="py-2 px-3">
+                        <div className="flex items-center gap-2 flex-wrap text-xs">
+                          <span className="font-medium text-brand-black">Options for &ldquo;{cf.name}&rdquo;:</span>
+                          {editFieldOptions.map((opt, i) => (
+                            <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-platinum rounded">
+                              {opt}
+                              <button onClick={() => {
+                                const next = editFieldOptions.filter((_, j) => j !== i);
+                                setEditFieldOptions(next);
+                                updateCustomFieldOptions(cf.id, next);
+                              }} className="text-brand-gray hover:text-red-500">&times;</button>
+                            </span>
+                          ))}
+                          <input
+                            value={editFieldOptionInput}
+                            onChange={(e) => setEditFieldOptionInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && editFieldOptionInput.trim()) {
+                                const next = [...editFieldOptions, editFieldOptionInput.trim()];
+                                setEditFieldOptions(next);
+                                setEditFieldOptionInput("");
+                                updateCustomFieldOptions(cf.id, next);
+                              }
+                            }}
+                            placeholder="Add option + Enter"
+                            className="px-2 py-0.5 border border-platinum rounded text-xs bg-white focus:outline-none focus:border-royal-purple w-32"
+                          />
+                          <button onClick={() => setEditFieldId(null)} className="text-brand-gray hover:text-brand-black ml-2">Done</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })()}
               </thead>
               <tbody>
                 {(hasSections ? groupedTasks : [{ section: null, tasks: project.tasks }]).map((group) => {
@@ -406,7 +533,7 @@ export default function ProjectDetailPage() {
                             setDragTaskId(null);
                           }}
                         >
-                          <td colSpan={9} className="py-2.5 px-2">
+                          <td colSpan={10 + (project.customFields || []).length} className="py-2.5 px-2">
                             <div className="flex items-center gap-2">
                               <div
                                 className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
@@ -566,6 +693,67 @@ export default function ProjectDetailPage() {
                               className="w-full px-1 py-0.5 text-xs border border-transparent hover:border-platinum focus:border-royal-purple rounded focus:outline-none bg-transparent"
                             />
                           </td>
+                          {(project.customFields || []).map((cf) => {
+                            const val = getFieldValue(task, cf.id);
+                            const opts: string[] = (() => { try { return JSON.parse(cf.options); } catch { return []; } })();
+                            if (cf.type === "text") {
+                              return (
+                                <td key={cf.id} className="py-2">
+                                  <input
+                                    defaultValue={val}
+                                    key={task.id + "-cf-" + cf.id + "-" + val}
+                                    onBlur={(e) => { if (e.target.value !== val) updateTaskCustomFieldValue(task.id, cf.id, e.target.value); }}
+                                    placeholder="—"
+                                    className="w-full px-1 py-0.5 text-xs border border-transparent hover:border-platinum focus:border-royal-purple rounded focus:outline-none bg-transparent"
+                                  />
+                                </td>
+                              );
+                            }
+                            if (cf.type === "single-select") {
+                              return (
+                                <td key={cf.id} className="py-2">
+                                  <select
+                                    value={val}
+                                    onChange={(e) => updateTaskCustomFieldValue(task.id, cf.id, e.target.value)}
+                                    className="text-xs text-brand-gray border border-transparent hover:border-platinum focus:border-royal-purple rounded px-1 py-0.5 bg-transparent focus:outline-none cursor-pointer max-w-[130px]"
+                                  >
+                                    <option value="">—</option>
+                                    {opts.map((o) => <option key={o} value={o}>{o}</option>)}
+                                  </select>
+                                </td>
+                              );
+                            }
+                            // multi-select
+                            const selected: string[] = (() => { try { return val ? JSON.parse(val) : []; } catch { return []; } })();
+                            return (
+                              <td key={cf.id} className="py-2">
+                                <div className="flex flex-wrap gap-0.5 items-center">
+                                  {selected.map((s) => (
+                                    <span key={s} className="inline-flex items-center gap-0.5 px-1.5 py-0 bg-lavender rounded text-[11px]">
+                                      {s}
+                                      <button onClick={() => {
+                                        const next = selected.filter((x) => x !== s);
+                                        updateTaskCustomFieldValue(task.id, cf.id, JSON.stringify(next));
+                                      }} className="text-brand-gray hover:text-red-500 text-[10px]">&times;</button>
+                                    </span>
+                                  ))}
+                                  <select
+                                    value=""
+                                    onChange={(e) => {
+                                      if (e.target.value && !selected.includes(e.target.value)) {
+                                        updateTaskCustomFieldValue(task.id, cf.id, JSON.stringify([...selected, e.target.value]));
+                                      }
+                                    }}
+                                    className="text-[11px] text-brand-gray border-0 bg-transparent focus:outline-none cursor-pointer w-8"
+                                  >
+                                    <option value="">+</option>
+                                    {opts.filter((o) => !selected.includes(o)).map((o) => <option key={o} value={o}>{o}</option>)}
+                                  </select>
+                                </div>
+                              </td>
+                            );
+                          })}
+                          <td></td>
                           <td className="py-2">
                             <button onClick={() => setConfirmTaskDelete(task.id)} className="text-xs text-red-400 hover:text-red-600">Delete</button>
                           </td>
@@ -711,7 +899,7 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
                 {/* Notes */}
-                <div className="flex items-center">
+                <div className="flex items-center border-b border-platinum">
                   <div className="w-32 px-3 py-2.5 text-xs text-brand-gray bg-white-smoke/50 flex-shrink-0">Notes</div>
                   <div className="flex-1 px-3 py-2.5">
                     <input
@@ -723,6 +911,64 @@ export default function ProjectDetailPage() {
                     />
                   </div>
                 </div>
+                {/* Custom fields */}
+                {(project.customFields || []).map((cf, cfIdx) => {
+                  const val = getFieldValue(activeTask, cf.id);
+                  const opts: string[] = (() => { try { return JSON.parse(cf.options); } catch { return []; } })();
+                  const isLast = cfIdx === (project.customFields || []).length - 1;
+                  return (
+                    <div key={cf.id} className={`flex items-center ${!isLast ? "border-b border-platinum" : ""}`}>
+                      <div className="w-32 px-3 py-2.5 text-xs text-brand-gray bg-white-smoke/50 flex-shrink-0">{cf.name}</div>
+                      <div className="flex-1 px-3 py-2.5">
+                        {cf.type === "text" ? (
+                          <input
+                            defaultValue={val}
+                            key={activeTask.id + "-cf-" + cf.id + "-" + val}
+                            onBlur={(e) => { if (e.target.value !== val) updateTaskCustomFieldValue(activeTask.id, cf.id, e.target.value); }}
+                            placeholder="—"
+                            className="text-sm border-0 focus:outline-none bg-transparent w-full"
+                          />
+                        ) : cf.type === "single-select" ? (
+                          <select
+                            value={val}
+                            onChange={(e) => updateTaskCustomFieldValue(activeTask.id, cf.id, e.target.value)}
+                            className="text-sm border-0 focus:outline-none bg-transparent cursor-pointer"
+                          >
+                            <option value="">—</option>
+                            {opts.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        ) : (() => {
+                          const selected: string[] = (() => { try { return val ? JSON.parse(val) : []; } catch { return []; } })();
+                          return (
+                            <div className="flex flex-wrap gap-1 items-center">
+                              {selected.map((s) => (
+                                <span key={s} className="inline-flex items-center gap-1 px-2 py-0.5 bg-lavender rounded text-xs">
+                                  {s}
+                                  <button onClick={() => {
+                                    const next = selected.filter((x) => x !== s);
+                                    updateTaskCustomFieldValue(activeTask.id, cf.id, JSON.stringify(next));
+                                  }} className="text-brand-gray hover:text-red-500">&times;</button>
+                                </span>
+                              ))}
+                              <select
+                                value=""
+                                onChange={(e) => {
+                                  if (e.target.value && !selected.includes(e.target.value)) {
+                                    updateTaskCustomFieldValue(activeTask.id, cf.id, JSON.stringify([...selected, e.target.value]));
+                                  }
+                                }}
+                                className="text-xs text-brand-gray border border-platinum rounded px-1 py-0.5 bg-white"
+                              >
+                                <option value="">+ Add</option>
+                                {opts.filter((o) => !selected.includes(o)).map((o) => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Description */}
@@ -907,6 +1153,69 @@ export default function ProjectDetailPage() {
         title="Delete Section"
         message={`Are you sure you want to delete the section "${confirmSectionDelete}"? Tasks will be kept but removed from this section.`}
       />
+      <Modal open={addFieldModal} onClose={() => setAddFieldModal(false)} title="Add Custom Field">
+        <div className="space-y-3">
+          <input
+            value={newFieldName}
+            onChange={(e) => setNewFieldName(e.target.value)}
+            placeholder="Field name"
+            className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple"
+            autoFocus
+          />
+          <div>
+            <label className="block text-sm text-brand-gray mb-1">Type</label>
+            <select
+              value={newFieldType}
+              onChange={(e) => { setNewFieldType(e.target.value as "text" | "single-select" | "multi-select"); setNewFieldOptions([]); }}
+              className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple"
+            >
+              <option value="text">Text</option>
+              <option value="single-select">Single Select</option>
+              <option value="multi-select">Multi Select</option>
+            </select>
+          </div>
+          {(newFieldType === "single-select" || newFieldType === "multi-select") && (
+            <div>
+              <label className="block text-sm text-brand-gray mb-1">Options</label>
+              <div className="flex flex-wrap gap-1 mb-2">
+                {newFieldOptions.map((opt, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-lavender rounded text-xs">
+                    {opt}
+                    <button onClick={() => setNewFieldOptions(newFieldOptions.filter((_, j) => j !== i))} className="text-brand-gray hover:text-red-500">&times;</button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={newFieldOptionInput}
+                  onChange={(e) => setNewFieldOptionInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newFieldOptionInput.trim()) {
+                      setNewFieldOptions([...newFieldOptions, newFieldOptionInput.trim()]);
+                      setNewFieldOptionInput("");
+                    }
+                  }}
+                  placeholder="Type an option and press Enter"
+                  className="flex-1 px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple"
+                />
+                <button
+                  onClick={() => {
+                    if (newFieldOptionInput.trim()) {
+                      setNewFieldOptions([...newFieldOptions, newFieldOptionInput.trim()]);
+                      setNewFieldOptionInput("");
+                    }
+                  }}
+                  className="px-3 py-2 text-sm rounded bg-platinum hover:bg-lavender"
+                >Add</button>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="flex justify-end gap-3 mt-4">
+          <button onClick={() => setAddFieldModal(false)} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
+          <button onClick={createCustomField} className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue">Create</button>
+        </div>
+      </Modal>
       <Modal open={membersModal} onClose={() => setMembersModal(false)} title="Project Members">
         <div className="space-y-3">
           <div className="text-xs text-brand-gray mb-2">Members who can see this project:</div>

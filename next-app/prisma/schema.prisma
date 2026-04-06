@@ -85,6 +85,7 @@ model Project {
   updatedAt    DateTime        @updatedAt
   tasks        Task[]
   members      ProjectMember[]
+  customFields CustomField[]
 }
 
 model ProjectMember {
@@ -113,7 +114,8 @@ model Task {
   notes         String             @default("")
   completed     Boolean            @default(false)
   createdAt     DateTime           @default(now())
-  collaborators TaskCollaborator[]
+  collaborators    TaskCollaborator[]
+  customFieldValues TaskCustomFieldValue[]
 }
 
 model TaskCollaborator {
@@ -140,6 +142,29 @@ model PtoRequest {
   reviewer   Person?  @relation("PtoReviews", fields: [reviewerId], references: [id], onDelete: SetNull)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+model CustomField {
+  id        String                 @id @default(cuid())
+  projectId String
+  project   Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  type      String                 @default("text") // "text", "single-select", "multi-select"
+  options   String                 @default("[]") // JSON array of options for select types
+  position  Int                    @default(0)
+  createdAt DateTime               @default(now())
+  values    TaskCustomFieldValue[]
+}
+
+model TaskCustomFieldValue {
+  id            String      @id @default(cuid())
+  taskId        String
+  task          Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  customFieldId String
+  customField   CustomField @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
+  value         String      @default("") // text value or JSON array for multi-select
+
+  @@unique([taskId, customFieldId])
 }
 
 model ContentDocument {

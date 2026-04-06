@@ -23,13 +23,16 @@ export async function GET(
           subtasks: {
             include: {
               collaborators: { include: { person: true } },
+              customFieldValues: true,
             },
             orderBy: [{ completed: "asc" }, { createdAt: "asc" }],
           },
+          customFieldValues: true,
         },
         orderBy: [{ completed: "asc" }, { title: "asc" }],
       },
       members: { include: { user: { select: { id: true, email: true } } } },
+      customFields: { orderBy: { position: "asc" } },
     },
   });
 
