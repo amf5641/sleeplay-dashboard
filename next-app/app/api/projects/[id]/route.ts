@@ -17,8 +17,15 @@ export async function GET(
     where: { id },
     include: {
       tasks: {
+        where: { parentId: null },
         include: {
           collaborators: { include: { person: true } },
+          subtasks: {
+            include: {
+              collaborators: { include: { person: true } },
+            },
+            orderBy: [{ completed: "asc" }, { createdAt: "asc" }],
+          },
         },
         orderBy: [{ completed: "asc" }, { title: "asc" }],
       },

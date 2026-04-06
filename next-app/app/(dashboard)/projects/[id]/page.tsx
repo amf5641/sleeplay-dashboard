@@ -87,9 +87,12 @@ function RichTextEditor({ value, onChange, placeholder }: { value: string; onCha
 interface Person { id: string; name: string }
 interface AppUser { id: string; email: string }
 interface ProjectMember { id: string; user: AppUser }
-interface Task {
+interface Subtask {
   id: string; title: string; description: string; dueDate: string | null; priority: string; status: string; notes: string; completed: boolean; createdAt: string;
   collaborators: { person: Person }[];
+}
+interface Task extends Subtask {
+  subtasks: Subtask[];
 }
 interface Project { id: string; name: string; description: string; status: string; notes: string; sectionOrder: string; tasks: Task[]; members: ProjectMember[] }
 
@@ -703,6 +706,101 @@ export default function ProjectDetailPage() {
                   onChange={(html) => updateTaskField(activeTask.id, "description", html)}
                   placeholder="Add a description..."
                 />
+              </div>
+
+              {/* Subtasks */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-brand-black">
+                    Subtasks {activeTask.subtasks?.length > 0 && (
+                      <span className="text-xs font-normal text-brand-gray ml-1">
+                        {activeTask.subtasks.filter((s) => s.completed).length}/{activeTask.subtasks.length}
+                      </span>
+                    )}
+                  </h3>
+                </div>
+                {activeTask.subtasks?.length > 0 && (
+                  <div className="space-y-1 mb-3">
+                    {activeTask.subtasks.map((sub) => (
+                      <div key={sub.id} className="border border-platinum rounded p-2.5 bg-white-smoke/30">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <input
+                            type="checkbox"
+                            checked={sub.completed}
+                            onChange={() => toggleTask(sub.id, sub.completed)}
+                            className="rounded flex-shrink-0"
+                          />
+                          <input
+                            defaultValue={sub.title}
+                            key={sub.id + "-title-" + sub.title}
+                            onBlur={(e) => { if (e.target.value !== sub.title) updateTaskField(sub.id, "title", e.target.value); }}
+                            className={`text-sm flex-1 border-0 focus:outline-none bg-transparent ${sub.completed ? "line-through text-brand-gray" : ""}`}
+                          />
+                          <button
+                            onClick={() => setConfirmTaskDelete(sub.id)}
+                            className="text-brand-gray hover:text-red-500 flex-shrink-0"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap pl-6">
+                          <input
+                            type="date"
+                            defaultValue={sub.dueDate || ""}
+                            key={sub.id + "-due-" + sub.dueDate}
+                            onChange={(e) => updateTaskField(sub.id, "dueDate", e.target.value || null)}
+                            className="text-[11px] text-brand-gray border border-platinum rounded px-1.5 py-0.5 bg-white focus:outline-none focus:border-royal-purple cursor-pointer"
+                          />
+                          <select
+                            value={sub.priority}
+                            onChange={(e) => updateTaskField(sub.id, "priority", e.target.value)}
+                            className={`text-[11px] font-medium rounded px-1.5 py-0.5 border-0 cursor-pointer ${sub.priority === "high" ? "bg-red-100 text-red-700" : sub.priority === "low" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}
+                          >
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                          </select>
+                          <select
+                            value={sub.status}
+                            onChange={(e) => updateTaskField(sub.id, "status", e.target.value)}
+                            className={`text-[11px] font-medium rounded px-1.5 py-0.5 border-0 cursor-pointer ${statusColors[sub.status] || "bg-gray-100 text-gray-600"}`}
+                          >
+                            {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                          <select
+                            value={sub.collaborators.length > 0 ? sub.collaborators[0].person.id : ""}
+                            onChange={(e) => {
+                              if (e.target.value === "") {
+                                updateTaskCollaborators(sub.id, []);
+                              } else {
+                                updateTaskCollaborators(sub.id, [e.target.value]);
+                              }
+                            }}
+                            className="text-[11px] text-brand-gray border border-platinum rounded px-1.5 py-0.5 bg-white focus:outline-none cursor-pointer max-w-[110px]"
+                          >
+                            <option value="">Assign...</option>
+                            {people.map((p) => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  onClick={async () => {
+                    await fetch("/api/tasks", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ projectId: id, parentId: activeTask.id, title: "New subtask" }),
+                    });
+                    mutate();
+                  }}
+                  className="text-xs text-royal-purple hover:text-midnight-blue flex items-center gap-1"
+                >
+                  <span>+</span> Add subtask
+                </button>
               </div>
 
               {/* Footer actions */}
