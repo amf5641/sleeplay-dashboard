@@ -10,6 +10,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const navItems = [
   { href: "/", label: "Home", icon: "🏠" },
   { href: "/notifications", label: "Notifications", icon: "🔔" },
+  { href: "/my-tasks", label: "My Tasks", icon: "✅" },
   { href: "/sops", label: "SOPs", icon: "📋" },
   { href: "/content", label: "Content", icon: "📄" },
   { href: "/org-chart", label: "Org Chart", icon: "🏢" },
