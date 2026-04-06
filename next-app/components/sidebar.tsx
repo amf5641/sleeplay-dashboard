@@ -5,6 +5,7 @@ import { signOut, useSession } from "next-auth/react";
 import Image from "next/image";
 
 const navItems = [
+  { href: "/", label: "Home", icon: "🏠" },
   { href: "/sops", label: "SOPs", icon: "📋" },
   { href: "/content", label: "Content", icon: "📄" },
   { href: "/org-chart", label: "Org Chart", icon: "🏢" },
@@ -20,12 +21,12 @@ export default function Sidebar() {
 
   return (
     <aside className="w-60 bg-ultra-violet text-white flex flex-col h-screen sticky top-0 shrink-0">
-      <Link href="/sops" className="block px-5 py-5 border-b border-white/10">
+      <Link href="/" className="block px-5 py-5 border-b border-white/10">
         <Image src="/sleeplay-logo.svg" alt="Sleeplay" width={120} height={28} priority />
       </Link>
       <nav className="flex-1 py-3 overflow-y-auto">
         {navItems.map((item) => {
-          const active = pathname.startsWith(item.href);
+          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}
