@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import Topbar from "@/components/topbar";
@@ -103,12 +103,28 @@ export default function ProjectDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmTaskDelete, setConfirmTaskDelete] = useState<string | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [sectionsInitialized, setSectionsInitialized] = useState(false);
   const [dragSection, setDragSection] = useState<string | null>(null);
   const [dragOverSection, setDragOverSection] = useState<string | null>(null);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [confirmSectionDelete, setConfirmSectionDelete] = useState<string | null>(null);
   const [calMonth, setCalMonth] = useState(new Date());
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+  // Default all sections to collapsed on first load
+  useEffect(() => {
+    if (project && !sectionsInitialized) {
+      const allSections = new Set<string>();
+      for (const task of project.tasks) {
+        const match = task.notes.match(/^\[([^\]]+)\]/);
+        if (match) allSections.add(match[1]);
+      }
+      if (allSections.size > 0) {
+        setCollapsedSections(allSections);
+        setSectionsInitialized(true);
+      }
+    }
+  }, [project, sectionsInitialized]);
 
   const openAddTask = () => {
     setTaskForm({ title: "", dueDate: "", priority: "medium", status: "On Track", notes: "", description: "", collaborators: [] });
