@@ -87,6 +87,7 @@ export default function PtoPage() {
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ personId: "", type: "vacation", startDate: "", endDate: "", note: "" });
+  const [halfDay, setHalfDay] = useState(false);
 
   const { data: requests = [], mutate } = useSWR<PtoRequest[]>(`/api/pto?status=${filter}`, fetcher);
   const { data: people = [] } = useSWR<Person[]>("/api/people", fetcher);
@@ -113,7 +114,8 @@ export default function PtoPage() {
     (r) => r.person.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const days = calcDays(form.startDate, form.endDate);
+  const rawDays = calcDays(form.startDate, form.endDate);
+  const days = halfDay ? rawDays - 0.5 : rawDays;
 
   const createRequest = async () => {
     if (!form.personId || !form.startDate || !form.endDate || days <= 0) return;
@@ -125,6 +127,7 @@ export default function PtoPage() {
     if (res.ok) {
       setModalOpen(false);
       setForm({ personId: isAdmin ? "" : (myPerson?.id ?? ""), type: "vacation", startDate: "", endDate: "", note: "" });
+      setHalfDay(false);
       mutate();
       mutateBalance();
       mutateAllBalances();
@@ -527,10 +530,21 @@ export default function PtoPage() {
             </div>
           </div>
 
-          {days > 0 && (
-            <p className="text-sm text-brand-gray">
-              {days} business day{days !== 1 ? "s" : ""}
-            </p>
+          {rawDays > 0 && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-brand-gray">
+                {days} business day{days !== 1 ? "s" : ""}
+              </p>
+              <label className="flex items-center gap-2 text-sm text-brand-gray cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={halfDay}
+                  onChange={(e) => setHalfDay(e.target.checked)}
+                  className="rounded"
+                />
+                Half day
+              </label>
+            </div>
           )}
 
           <div>

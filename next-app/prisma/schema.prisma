@@ -136,7 +136,7 @@ model PtoRequest {
   type       String   @default("vacation")
   startDate  DateTime
   endDate    DateTime
-  days       Int
+  days       Float
   note       String   @default("")
   status     String   @default("pending")
   reviewerId String?
