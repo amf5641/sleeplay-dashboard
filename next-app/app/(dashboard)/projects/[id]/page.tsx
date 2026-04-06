@@ -105,6 +105,8 @@ export default function ProjectDetailPage() {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [dragSection, setDragSection] = useState<string | null>(null);
   const [dragOverSection, setDragOverSection] = useState<string | null>(null);
+  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [confirmSectionDelete, setConfirmSectionDelete] = useState<string | null>(null);
   const [calMonth, setCalMonth] = useState(new Date());
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
@@ -209,6 +211,42 @@ export default function ProjectDetailPage() {
     mutate();
   };
 
+  const renameSection = async (oldName: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) { setEditingSection(null); return; }
+    // Update all tasks in this section: replace [OldName] with [NewName] in notes
+    const tasksInSection = project.tasks.filter((t) => {
+      const match = t.notes.match(/^\[([^\]]+)\]/);
+      return match && match[1] === oldName;
+    });
+    for (const task of tasksInSection) {
+      const newNotes = task.notes.replace(`[${oldName}]`, `[${trimmed}]`);
+      await fetch(`/api/tasks/${task.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: newNotes }) });
+    }
+    // Update sectionOrder too
+    const sections = groupedTasks.filter((g) => g.section !== null).map((g) => g.section === oldName ? trimmed : g.section as string);
+    await fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sectionOrder: JSON.stringify(sections) }) });
+    setEditingSection(null);
+    mutate();
+  };
+
+  const deleteSection = async (sectionName: string) => {
+    // Remove the [SectionName] prefix from all tasks in this section
+    const tasksInSection = project.tasks.filter((t) => {
+      const match = t.notes.match(/^\[([^\]]+)\]/);
+      return match && match[1] === sectionName;
+    });
+    for (const task of tasksInSection) {
+      const newNotes = task.notes.replace(/^\[[^\]]+\]\s*/, "");
+      await fetch(`/api/tasks/${task.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: newNotes }) });
+    }
+    // Remove from sectionOrder
+    const sections = groupedTasks.filter((g) => g.section !== null && g.section !== sectionName).map((g) => g.section as string);
+    await fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sectionOrder: JSON.stringify(sections) }) });
+    setConfirmSectionDelete(null);
+    mutate();
+  };
+
   // Calendar helpers
   const year = calMonth.getFullYear();
   const month = calMonth.getMonth();
@@ -267,11 +305,6 @@ export default function ProjectDetailPage() {
                       {group.section && (
                         <tr
                           className={`group bg-white-smoke/70 border-b border-platinum transition-colors ${dragOverSection === group.section && dragSection !== group.section ? "border-t-2 border-t-royal-purple" : ""} ${dragSection === group.section ? "opacity-50" : ""}`}
-                          draggable
-                          onDragStart={(e) => {
-                            setDragSection(group.section);
-                            e.dataTransfer.effectAllowed = "move";
-                          }}
                           onDragOver={(e) => {
                             e.preventDefault();
                             e.dataTransfer.dropEffect = "move";
@@ -284,13 +317,12 @@ export default function ProjectDetailPage() {
                             setDragSection(null);
                             setDragOverSection(null);
                           }}
-                          onDragEnd={() => { setDragSection(null); setDragOverSection(null); }}
                         >
                           <td colSpan={9} className="py-2.5 px-2">
                             <div className="flex items-center gap-2">
                               <div
                                 className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
-                                onClick={() => toggleSection(group.section!)}
+                                onClick={() => { if (editingSection !== group.section) toggleSection(group.section!); }}
                               >
                                 <svg
                                   className={`w-3.5 h-3.5 text-brand-gray transition-transform flex-shrink-0 ${isCollapsed ? "" : "rotate-90"}`}
@@ -298,11 +330,48 @@ export default function ProjectDetailPage() {
                                 >
                                   <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
                                 </svg>
-                                <span className="font-semibold font-heading text-sm text-brand-black">{group.section}</span>
+                                {editingSection === group.section ? (
+                                  <input
+                                    autoFocus
+                                    defaultValue={group.section}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onBlur={(e) => renameSection(group.section!, e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") renameSection(group.section!, (e.target as HTMLInputElement).value);
+                                      if (e.key === "Escape") setEditingSection(null);
+                                    }}
+                                    className="font-semibold font-heading text-sm text-brand-black border border-royal-purple rounded px-1 py-0.5 focus:outline-none bg-white"
+                                  />
+                                ) : (
+                                  <span className="font-semibold font-heading text-sm text-brand-black">{group.section}</span>
+                                )}
                                 <span className="text-xs text-brand-gray ml-1">{doneTasks}/{group.tasks.length}</span>
                               </div>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingSection(group.section); }}
+                                className="flex-shrink-0 p-1 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-platinum text-brand-gray hover:text-brand-black"
+                                title="Rename section"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setConfirmSectionDelete(group.section); }}
+                                className="flex-shrink-0 p-1 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-red-50 text-brand-gray hover:text-red-500"
+                                title="Delete section"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
                               <div
-                                className="flex-shrink-0 cursor-grab active:cursor-grabbing px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                draggable
+                                onDragStart={(e) => {
+                                  setDragSection(group.section);
+                                  e.dataTransfer.effectAllowed = "move";
+                                  // Use the parent row as the drag image
+                                  const row = (e.target as HTMLElement).closest("tr");
+                                  if (row) e.dataTransfer.setDragImage(row, row.offsetWidth - 40, 20);
+                                }}
+                                onDragEnd={() => { setDragSection(null); setDragOverSection(null); }}
+                                className="flex-shrink-0 cursor-grab active:cursor-grabbing px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-platinum"
                                 title="Drag to reorder"
                               >
                                 <svg className="w-4 h-4 text-brand-gray" viewBox="0 0 24 24" fill="currentColor">
@@ -611,6 +680,13 @@ export default function ProjectDetailPage() {
         onConfirm={() => { if (confirmTaskDelete) { deleteTask(confirmTaskDelete); setConfirmTaskDelete(null); } }}
         title="Delete Task"
         message="Are you sure you want to delete this task? This action cannot be undone."
+      />
+      <ConfirmDialog
+        open={!!confirmSectionDelete}
+        onClose={() => setConfirmSectionDelete(null)}
+        onConfirm={() => { if (confirmSectionDelete) deleteSection(confirmSectionDelete); }}
+        title="Delete Section"
+        message={`Are you sure you want to delete the section "${confirmSectionDelete}"? Tasks will be kept but removed from this section.`}
       />
     </>
   );
