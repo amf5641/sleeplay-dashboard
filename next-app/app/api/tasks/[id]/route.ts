@@ -77,7 +77,7 @@ export async function PUT(
               type: "task_assigned",
               title: "New task assigned",
               message: `You were assigned "${taskData?.title}"${project ? ` in ${project.name}` : ""}`,
-              linkUrl: `/projects/${taskData?.projectId}`,
+              linkUrl: `/projects/${taskData?.projectId}?task=${id}`,
             },
           });
         }

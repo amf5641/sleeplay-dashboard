@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import Topbar from "@/components/topbar";
 import Modal from "@/components/modal";
@@ -99,6 +99,7 @@ interface Project { id: string; name: string; description: string; status: strin
 export default function ProjectDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: project, mutate } = useSWR<Project>(`/api/projects/${id}`, fetcher);
   const { data: people = [] } = useSWR<Person[]>("/api/people", fetcher);
   const { data: allUsers = [] } = useSWR<AppUser[]>("/api/users", fetcher);
@@ -119,7 +120,7 @@ export default function ProjectDetailPage() {
   const [calMonth, setCalMonth] = useState(new Date());
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
-  // Default all sections to collapsed on first load
+  // Default all sections to collapsed on first load, and auto-select task from URL
   useEffect(() => {
     if (project && !sectionsInitialized) {
       const allSections = new Set<string>();
@@ -127,12 +128,25 @@ export default function ProjectDetailPage() {
         const match = task.notes.match(/^\[([^\]]+)\]/);
         if (match) allSections.add(match[1]);
       }
+
+      // Check for ?task= param to auto-open a specific task
+      const taskParam = searchParams.get("task");
+      if (taskParam) {
+        const targetTask = project.tasks.find((t) => t.id === taskParam);
+        if (targetTask) {
+          setSelectedTask(targetTask);
+          // Expand the section this task belongs to
+          const taskSection = targetTask.notes.match(/^\[([^\]]+)\]/);
+          if (taskSection) allSections.delete(taskSection[1]);
+        }
+      }
+
       if (allSections.size > 0) {
         setCollapsedSections(allSections);
-        setSectionsInitialized(true);
       }
+      setSectionsInitialized(true);
     }
-  }, [project, sectionsInitialized]);
+  }, [project, sectionsInitialized, searchParams]);
 
   const openAddTask = () => {
     setTaskForm({ title: "", dueDate: "", priority: "medium", status: "On Track", notes: "", description: "", collaborators: [], section: "" });

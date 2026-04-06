@@ -83,7 +83,7 @@ export default function NotificationsPage() {
                         href={n.linkUrl}
                         className="inline-block text-xs text-royal-purple hover:text-midnight-blue mt-1.5"
                       >
-                        View project &rarr;
+                        {n.type === "task_assigned" ? "View task" : "View project"} &rarr;
                       </Link>
                     )}
                   </div>

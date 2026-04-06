@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
             type: "task_assigned",
             title: "New task assigned",
             message: `You were assigned "${task.title}"${project ? ` in ${project.name}` : ""}`,
-            linkUrl: `/projects/${body.projectId}`,
+            linkUrl: `/projects/${body.projectId}?task=${task.id}`,
           },
         });
       }
