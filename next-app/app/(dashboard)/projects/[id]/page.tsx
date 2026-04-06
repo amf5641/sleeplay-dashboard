@@ -103,6 +103,8 @@ export default function ProjectDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmTaskDelete, setConfirmTaskDelete] = useState<string | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [dragSection, setDragSection] = useState<string | null>(null);
+  const [dragOverSection, setDragOverSection] = useState<string | null>(null);
   const [calMonth, setCalMonth] = useState(new Date());
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
@@ -194,21 +196,14 @@ export default function ProjectDetailPage() {
     });
   };
 
-  const moveSectionUp = (section: string) => {
+  const handleSectionDrop = (fromSection: string, toSection: string) => {
+    if (fromSection === toSection) return;
     const sections = groupedTasks.filter((g) => g.section !== null).map((g) => g.section as string);
-    const idx = sections.indexOf(section);
-    if (idx <= 0) return;
-    [sections[idx - 1], sections[idx]] = [sections[idx], sections[idx - 1]];
-    const newOrder = JSON.stringify(sections);
-    fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sectionOrder: newOrder }) });
-    mutate();
-  };
-
-  const moveSectionDown = (section: string) => {
-    const sections = groupedTasks.filter((g) => g.section !== null).map((g) => g.section as string);
-    const idx = sections.indexOf(section);
-    if (idx < 0 || idx >= sections.length - 1) return;
-    [sections[idx], sections[idx + 1]] = [sections[idx + 1], sections[idx]];
+    const fromIdx = sections.indexOf(fromSection);
+    const toIdx = sections.indexOf(toSection);
+    if (fromIdx < 0 || toIdx < 0) return;
+    sections.splice(fromIdx, 1);
+    sections.splice(toIdx, 0, fromSection);
     const newOrder = JSON.stringify(sections);
     fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sectionOrder: newOrder }) });
     mutate();
@@ -270,15 +265,35 @@ export default function ProjectDetailPage() {
                   return (
                     <React.Fragment key={sectionKey}>
                       {group.section && (
-                        <tr className="group bg-white-smoke/70 border-b border-platinum">
+                        <tr
+                          className={`group bg-white-smoke/70 border-b border-platinum transition-colors ${dragOverSection === group.section && dragSection !== group.section ? "border-t-2 border-t-royal-purple" : ""} ${dragSection === group.section ? "opacity-50" : ""}`}
+                          draggable
+                          onDragStart={(e) => {
+                            setDragSection(group.section);
+                            e.dataTransfer.effectAllowed = "move";
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "move";
+                            if (group.section !== dragOverSection) setDragOverSection(group.section);
+                          }}
+                          onDragLeave={() => setDragOverSection(null)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            if (dragSection && group.section) handleSectionDrop(dragSection, group.section);
+                            setDragSection(null);
+                            setDragOverSection(null);
+                          }}
+                          onDragEnd={() => { setDragSection(null); setDragOverSection(null); }}
+                        >
                           <td colSpan={9} className="py-2.5 px-2">
                             <div className="flex items-center gap-2">
                               <div
-                                className="flex items-center gap-2 cursor-pointer flex-1"
+                                className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
                                 onClick={() => toggleSection(group.section!)}
                               >
                                 <svg
-                                  className={`w-3.5 h-3.5 text-brand-gray transition-transform ${isCollapsed ? "" : "rotate-90"}`}
+                                  className={`w-3.5 h-3.5 text-brand-gray transition-transform flex-shrink-0 ${isCollapsed ? "" : "rotate-90"}`}
                                   fill="currentColor" viewBox="0 0 20 20"
                                 >
                                   <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
@@ -286,21 +301,16 @@ export default function ProjectDetailPage() {
                                 <span className="font-semibold font-heading text-sm text-brand-black">{group.section}</span>
                                 <span className="text-xs text-brand-gray ml-1">{doneTasks}/{group.tasks.length}</span>
                               </div>
-                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); moveSectionUp(group.section!); }}
-                                  className="p-0.5 text-brand-gray hover:text-brand-black rounded hover:bg-platinum"
-                                  title="Move up"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-                                </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); moveSectionDown(group.section!); }}
-                                  className="p-0.5 text-brand-gray hover:text-brand-black rounded hover:bg-platinum"
-                                  title="Move down"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                                </button>
+                              <div
+                                className="flex-shrink-0 cursor-grab active:cursor-grabbing px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Drag to reorder"
+                              >
+                                <svg className="w-4 h-4 text-brand-gray" viewBox="0 0 24 24" fill="currentColor">
+                                  <circle cx="9" cy="5" r="1.5" /><circle cx="15" cy="5" r="1.5" />
+                                  <circle cx="9" cy="10" r="1.5" /><circle cx="15" cy="10" r="1.5" />
+                                  <circle cx="9" cy="15" r="1.5" /><circle cx="15" cy="15" r="1.5" />
+                                  <circle cx="9" cy="20" r="1.5" /><circle cx="15" cy="20" r="1.5" />
+                                </svg>
                               </div>
                             </div>
                           </td>
