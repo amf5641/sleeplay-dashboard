@@ -103,7 +103,7 @@ export default function ProjectDetailPage() {
   const [view, setView] = useState<"list" | "calendar">("list");
   const [membersModal, setMembersModal] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
-  const [taskForm, setTaskForm] = useState({ title: "", dueDate: "", priority: "medium", status: "On Track", notes: "", description: "", collaborators: [] as string[] });
+  const [taskForm, setTaskForm] = useState({ title: "", dueDate: "", priority: "medium", status: "On Track", notes: "", description: "", collaborators: [] as string[], section: "" });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmTaskDelete, setConfirmTaskDelete] = useState<string | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
@@ -131,12 +131,13 @@ export default function ProjectDetailPage() {
   }, [project, sectionsInitialized]);
 
   const openAddTask = () => {
-    setTaskForm({ title: "", dueDate: "", priority: "medium", status: "On Track", notes: "", description: "", collaborators: [] });
+    setTaskForm({ title: "", dueDate: "", priority: "medium", status: "On Track", notes: "", description: "", collaborators: [], section: "" });
     setTaskModal(true);
   };
 
   const createTask = async () => {
-    const body = { ...taskForm, projectId: id };
+    const notes = taskForm.section ? `[${taskForm.section}] ${taskForm.notes}`.trim() : taskForm.notes;
+    const body = { ...taskForm, notes, projectId: id };
     await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setTaskModal(false);
     mutate();
@@ -676,6 +677,21 @@ export default function ProjectDetailPage() {
       <Modal open={taskModal} onClose={() => setTaskModal(false)} title="New Task">
         <div className="space-y-3">
           <input value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} placeholder="Task title" className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple" autoFocus />
+          {hasSections && (
+            <div>
+              <label className="block text-sm text-brand-gray mb-1">Section</label>
+              <select
+                value={taskForm.section}
+                onChange={(e) => setTaskForm({ ...taskForm, section: e.target.value })}
+                className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple"
+              >
+                <option value="">No section</option>
+                {groupedTasks.filter((g) => g.section !== null).map((g) => (
+                  <option key={g.section} value={g.section!}>{g.section}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <input type="date" value={taskForm.dueDate} onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })} className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple" />
           <select value={taskForm.priority} onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })} className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple">
             <option value="high">High</option>
