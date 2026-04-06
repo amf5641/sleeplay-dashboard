@@ -11,6 +11,8 @@ export async function GET(
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+  const user = session.user as { email?: string; id?: string; role?: string };
+
   const project = await prisma.project.findUnique({
     where: { id },
     include: {
@@ -20,10 +22,17 @@ export async function GET(
         },
         orderBy: [{ completed: "asc" }, { title: "asc" }],
       },
+      members: { include: { user: { select: { id: true, email: true } } } },
     },
   });
 
   if (!project) return Response.json({ error: "Not found" }, { status: 404 });
+
+  // Check access: admins can see all, members only their projects
+  if (user.role !== "admin" && !project.members.some((m) => m.user.email === user.email)) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   return Response.json(project);
 }
 

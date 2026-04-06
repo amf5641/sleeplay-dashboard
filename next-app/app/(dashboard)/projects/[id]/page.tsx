@@ -85,19 +85,23 @@ function RichTextEditor({ value, onChange, placeholder }: { value: string; onCha
 }
 
 interface Person { id: string; name: string }
+interface AppUser { id: string; email: string }
+interface ProjectMember { id: string; user: AppUser }
 interface Task {
   id: string; title: string; description: string; dueDate: string | null; priority: string; status: string; notes: string; completed: boolean; createdAt: string;
   collaborators: { person: Person }[];
 }
-interface Project { id: string; name: string; description: string; status: string; notes: string; sectionOrder: string; tasks: Task[] }
+interface Project { id: string; name: string; description: string; status: string; notes: string; sectionOrder: string; tasks: Task[]; members: ProjectMember[] }
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const { data: project, mutate } = useSWR<Project>(`/api/projects/${id}`, fetcher);
   const { data: people = [] } = useSWR<Person[]>("/api/people", fetcher);
+  const { data: allUsers = [] } = useSWR<AppUser[]>("/api/users", fetcher);
 
   const [view, setView] = useState<"list" | "calendar">("list");
+  const [membersModal, setMembersModal] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
   const [taskForm, setTaskForm] = useState({ title: "", dueDate: "", priority: "medium", status: "On Track", notes: "", description: "", collaborators: [] as string[] });
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -162,6 +166,16 @@ export default function ProjectDetailPage() {
   const deleteProject = async () => {
     await fetch(`/api/projects/${id}`, { method: "DELETE" });
     router.push("/projects");
+  };
+
+  const addMember = async (userId: string) => {
+    await fetch(`/api/projects/${id}/members`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId }) });
+    mutate();
+  };
+
+  const removeMember = async (userId: string) => {
+    await fetch(`/api/projects/${id}/members`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId }) });
+    mutate();
   };
 
   if (!project) return <div className="p-8 text-brand-gray">Loading...</div>;
@@ -283,9 +297,14 @@ export default function ProjectDetailPage() {
       <Topbar
         title={project.name}
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <button onClick={() => setView("list")} className={`px-3 py-1.5 text-sm rounded ${view === "list" ? "bg-midnight-blue text-white" : "bg-platinum hover:bg-lavender"}`}>List</button>
             <button onClick={() => setView("calendar")} className={`px-3 py-1.5 text-sm rounded ${view === "calendar" ? "bg-midnight-blue text-white" : "bg-platinum hover:bg-lavender"}`}>Calendar</button>
+            <div className="w-px h-6 bg-platinum mx-1" />
+            <button onClick={() => setMembersModal(true)} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender flex items-center gap-1.5">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              Members ({project.members?.length || 0})
+            </button>
             <button onClick={openAddTask} className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue">+ Task</button>
             <button onClick={() => router.push("/projects")} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">Back</button>
             <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 text-sm rounded bg-red-500 text-white hover:bg-red-600">Delete</button>
@@ -704,6 +723,45 @@ export default function ProjectDetailPage() {
         title="Delete Section"
         message={`Are you sure you want to delete the section "${confirmSectionDelete}"? Tasks will be kept but removed from this section.`}
       />
+      <Modal open={membersModal} onClose={() => setMembersModal(false)} title="Project Members">
+        <div className="space-y-3">
+          <div className="text-xs text-brand-gray mb-2">Members who can see this project:</div>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {(project.members || []).map((m) => (
+              <div key={m.user.id} className="flex items-center justify-between py-1.5 px-2 rounded bg-white-smoke/50">
+                <span className="text-sm">{m.user.email}</span>
+                <button
+                  onClick={() => removeMember(m.user.id)}
+                  className="text-xs text-red-400 hover:text-red-600"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            {(!project.members || project.members.length === 0) && (
+              <p className="text-xs text-brand-gray italic">No members yet. Admins can always see all projects.</p>
+            )}
+          </div>
+          <div className="border-t border-platinum pt-3">
+            <label className="text-xs text-brand-gray block mb-1">Add a member</label>
+            <select
+              value=""
+              onChange={(e) => { if (e.target.value) addMember(e.target.value); }}
+              className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple"
+            >
+              <option value="">Select a user...</option>
+              {allUsers
+                .filter((u) => !(project.members || []).some((m) => m.user.id === u.id))
+                .map((u) => (
+                  <option key={u.id} value={u.id}>{u.email}</option>
+                ))}
+            </select>
+          </div>
+        </div>
+        <div className="flex justify-end mt-4">
+          <button onClick={() => setMembersModal(false)} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Done</button>
+        </div>
+      </Modal>
     </>
   );
 }

@@ -25,11 +25,20 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: "/login" },
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.email = user.email;
+      if (user) {
+        token.email = user.email;
+        token.id = user.id;
+        const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { role: true } });
+        token.role = dbUser?.role || "member";
+      }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) session.user.email = token.email as string;
+      if (session.user) {
+        session.user.email = token.email as string;
+        (session.user as Record<string, unknown>).id = token.id;
+        (session.user as Record<string, unknown>).role = token.role;
+      }
       return session;
     },
   },
