@@ -12,6 +12,7 @@ export async function GET() {
     select: {
       id: true,
       email: true,
+      role: true,
       createdAt: true,
     },
   });

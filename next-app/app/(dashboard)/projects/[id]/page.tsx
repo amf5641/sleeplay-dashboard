@@ -6,6 +6,7 @@ import Topbar from "@/components/topbar";
 import Modal from "@/components/modal";
 import ConfirmDialog from "@/components/confirm-dialog";
 import PriorityBadge from "@/components/priority-badge";
+import { useRole } from "@/hooks/use-role";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -105,6 +106,7 @@ export default function ProjectDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { canEdit, isAdmin } = useRole();
   const { data: project, mutate } = useSWR<Project>(`/api/projects/${id}`, fetcher);
   const { data: people = [] } = useSWR<Person[]>("/api/people", fetcher);
   const { data: allUsers = [] } = useSWR<AppUser[]>("/api/users", fetcher);
@@ -432,13 +434,15 @@ export default function ProjectDetailPage() {
             <button onClick={() => setView("list")} className={`px-3 py-1.5 text-sm rounded ${view === "list" ? "bg-midnight-blue text-white" : "bg-platinum hover:bg-lavender"}`}>List</button>
             <button onClick={() => setView("calendar")} className={`px-3 py-1.5 text-sm rounded ${view === "calendar" ? "bg-midnight-blue text-white" : "bg-platinum hover:bg-lavender"}`}>Calendar</button>
             <div className="w-px h-6 bg-platinum mx-1" />
-            <button onClick={() => setMembersModal(true)} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-              Members ({project.members?.length || 0})
-            </button>
-            <button onClick={openAddTask} className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue">+ Task</button>
+            {canEdit && (
+              <button onClick={() => setMembersModal(true)} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender flex items-center gap-1.5">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                Members ({project.members?.length || 0})
+              </button>
+            )}
+            {canEdit && <button onClick={openAddTask} className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue">+ Task</button>}
             <button onClick={() => router.push("/projects")} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">Back</button>
-            <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 text-sm rounded bg-red-500 text-white hover:bg-red-600">Delete</button>
+            {canEdit && <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 text-sm rounded bg-red-500 text-white hover:bg-red-600">Delete</button>}
           </div>
         }
       />

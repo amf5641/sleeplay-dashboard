@@ -1,15 +1,26 @@
 "use client";
 import { useState } from "react";
 import useSWR from "swr";
+import { useSession } from "next-auth/react";
 import Topbar from "@/components/topbar";
 import Modal from "@/components/modal";
 import ConfirmDialog from "@/components/confirm-dialog";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-interface User { id: string; email: string; createdAt: string }
+const ROLES = ["admin", "manager", "member"] as const;
+const roleColors: Record<string, string> = {
+  admin: "bg-red-100 text-red-700",
+  manager: "bg-amber-100 text-amber-700",
+  member: "bg-blue-100 text-blue-700",
+};
+
+interface User { id: string; email: string; role: string; createdAt: string }
 
 export default function SettingsPage() {
+  const { data: session } = useSession();
+  const userRole = (session?.user as Record<string, unknown>)?.role as string | undefined;
+  const isAdmin = userRole === "admin";
   const { data: users = [], mutate } = useSWR<User[]>("/api/users", fetcher);
   const [addModal, setAddModal] = useState(false);
   const [inviteModal, setInviteModal] = useState(false);
@@ -59,6 +70,15 @@ export default function SettingsPage() {
     mutate();
   };
 
+  const updateRole = async (id: string, role: string) => {
+    await fetch(`/api/users/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    });
+    mutate();
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
@@ -68,10 +88,12 @@ export default function SettingsPage() {
       <Topbar
         title="Settings"
         actions={
-          <div className="flex gap-2">
-            <button onClick={() => { setAddModal(true); setError(""); }} className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue">+ Add User</button>
-            <button onClick={() => { setInviteModal(true); setError(""); setInviteResult(null); }} className="px-4 py-1.5 bg-white text-royal-purple text-sm rounded border border-royal-purple hover:bg-lavender">Invite User</button>
-          </div>
+          isAdmin ? (
+            <div className="flex gap-2">
+              <button onClick={() => { setAddModal(true); setError(""); }} className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue">+ Add User</button>
+              <button onClick={() => { setInviteModal(true); setError(""); setInviteResult(null); }} className="px-4 py-1.5 bg-white text-royal-purple text-sm rounded border border-royal-purple hover:bg-lavender">Invite User</button>
+            </div>
+          ) : undefined
         }
       />
       <div className="p-6">
@@ -80,18 +102,36 @@ export default function SettingsPage() {
             <thead>
               <tr className="text-left text-xs text-brand-gray border-b border-platinum bg-white-smoke">
                 <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3 w-36">Role</th>
                 <th className="px-4 py-3">Joined</th>
-                <th className="px-4 py-3 w-20"></th>
+                {isAdmin && <th className="px-4 py-3 w-20"></th>}
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="border-b border-platinum/50 last:border-b-0">
-                  <td className="px-4 py-3 text-sm">{user.email}</td>
-                  <td className="px-4 py-3 text-sm text-brand-gray">{new Date(user.createdAt).toLocaleDateString()}</td>
+              {users.map((u) => (
+                <tr key={u.id} className="border-b border-platinum/50 last:border-b-0">
+                  <td className="px-4 py-3 text-sm">{u.email}</td>
                   <td className="px-4 py-3">
-                    <button onClick={() => setConfirmDelete(user.id)} className="text-xs text-red-400 hover:text-red-600">Remove</button>
+                    {isAdmin ? (
+                      <select
+                        value={u.role || "member"}
+                        onChange={(e) => updateRole(u.id, e.target.value)}
+                        className={`px-2 py-1 text-xs font-medium rounded border-0 cursor-pointer capitalize ${roleColors[u.role] || roleColors.member}`}
+                      >
+                        {ROLES.map((r) => <option key={r} value={r} className="capitalize">{r}</option>)}
+                      </select>
+                    ) : (
+                      <span className={`px-2 py-1 text-xs font-medium rounded capitalize ${roleColors[u.role] || roleColors.member}`}>
+                        {u.role || "member"}
+                      </span>
+                    )}
                   </td>
+                  <td className="px-4 py-3 text-sm text-brand-gray">{new Date(u.createdAt).toLocaleDateString()}</td>
+                  {isAdmin && (
+                    <td className="px-4 py-3">
+                      <button onClick={() => setConfirmDelete(u.id)} className="text-xs text-red-400 hover:text-red-600">Remove</button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

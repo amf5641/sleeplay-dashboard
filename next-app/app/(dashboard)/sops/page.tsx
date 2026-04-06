@@ -6,6 +6,7 @@ import Topbar from "@/components/topbar";
 import Modal from "@/components/modal";
 import ConfirmDialog from "@/components/confirm-dialog";
 import EmptyState from "@/components/empty-state";
+import { useRole } from "@/hooks/use-role";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -13,6 +14,7 @@ interface Category { id: string; name: string; parentId: string | null; children
 interface Sop { id: string; title: string; categoryId: string | null; category?: Category; updatedAt: string }
 
 export default function SopsPage() {
+  const { canEdit } = useRole();
   const [search, setSearch] = useState("");
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -124,7 +126,7 @@ export default function SopsPage() {
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverCat(cat.id); }}
                 onDragLeave={() => { if (dragOverCat === cat.id) setDragOverCat(null); }}
                 onDrop={(e) => { e.preventDefault(); if (dragSopId) moveSopToCategory(dragSopId, cat.id); }}
-                className={`flex-1 text-left px-3 py-1.5 text-sm rounded transition-colors truncate ${
+                className={`flex-1 text-left px-3 py-1.5 text-sm rounded transition-colors ${
                   dragOverCat === cat.id ? "bg-royal-purple/20 ring-2 ring-royal-purple" : isSelected ? "bg-lavender text-midnight-blue font-medium" : "text-brand-gray hover:bg-white-smoke"
                 }`}
                 style={{ paddingLeft: `${12 + depth * 16}px` }}
@@ -132,7 +134,7 @@ export default function SopsPage() {
                 {cat.name}
               </button>
             )}
-            {renamingCat !== cat.id && (
+            {canEdit && renamingCat !== cat.id && (
               <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity pr-1">
                 <button
                   onClick={(e) => { e.stopPropagation(); setCatModalParentId(cat.id); setCatName(""); setCatModalOpen(true); }}
@@ -173,13 +175,15 @@ export default function SopsPage() {
         onSearch={setSearch}
         searchPlaceholder="Search SOPs..."
         actions={
-          <button onClick={() => setModalOpen(true)} className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue transition-colors">
-            + New SOP
-          </button>
+          canEdit ? (
+            <button onClick={() => setModalOpen(true)} className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue transition-colors">
+              + New SOP
+            </button>
+          ) : undefined
         }
       />
       <div className="flex flex-1">
-        <div className="w-56 bg-white border-r border-platinum p-3 overflow-y-auto flex flex-col">
+        <div className="w-64 bg-white border-r border-platinum p-3 overflow-y-auto flex flex-col">
           <button
             onClick={() => setSelectedCat(null)}
             onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverCat("__none__"); }}
@@ -192,13 +196,15 @@ export default function SopsPage() {
             All SOPs
           </button>
           {renderCatTree(topLevelCats)}
-          <button
-            onClick={() => { setCatModalParentId(null); setCatName(""); setCatModalOpen(true); }}
-            className="mt-3 w-full text-left px-3 py-1.5 text-sm text-royal-purple hover:bg-lavender/30 rounded flex items-center gap-1.5"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-            Add Category
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => { setCatModalParentId(null); setCatName(""); setCatModalOpen(true); }}
+              className="mt-3 w-full text-left px-3 py-1.5 text-sm text-royal-purple hover:bg-lavender/30 rounded flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              Add Category
+            </button>
+          )}
         </div>
         <div className="flex-1 p-6">
           {sops.length === 0 ? (
@@ -220,13 +226,15 @@ export default function SopsPage() {
                     )}
                     <p className="text-xs text-brand-gray">Updated {new Date(sop.updatedAt).toLocaleDateString()}</p>
                   </Link>
-                  <button
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmDeleteSop(sop); }}
-                    className="absolute top-4 right-4 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 text-brand-gray hover:text-red-500"
-                    title="Delete SOP"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmDeleteSop(sop); }}
+                      className="absolute top-4 right-4 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 text-brand-gray hover:text-red-500"
+                      title="Delete SOP"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

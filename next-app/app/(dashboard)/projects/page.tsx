@@ -5,12 +5,14 @@ import Link from "next/link";
 import Topbar from "@/components/topbar";
 import Modal from "@/components/modal";
 import EmptyState from "@/components/empty-state";
+import { useRole } from "@/hooks/use-role";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 interface Project { id: string; name: string; description: string; tasks: { completed: boolean }[]; createdAt: string; updatedAt: string }
 
 export default function ProjectsPage() {
+  const { canEdit } = useRole();
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -43,9 +45,11 @@ export default function ProjectsPage() {
         onSearch={setSearch}
         searchPlaceholder="Search projects..."
         actions={
-          <button onClick={() => setModalOpen(true)} className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue transition-colors">
-            + New Project
-          </button>
+          canEdit ? (
+            <button onClick={() => setModalOpen(true)} className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue transition-colors">
+              + New Project
+            </button>
+          ) : undefined
         }
       />
       <div className="p-6">

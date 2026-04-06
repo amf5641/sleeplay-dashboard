@@ -5,6 +5,7 @@ import useSWR from "swr";
 import Topbar from "@/components/topbar";
 import LoomEmbed from "@/components/loom-embed";
 import ConfirmDialog from "@/components/confirm-dialog";
+import { useRole } from "@/hooks/use-role";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -27,6 +28,7 @@ const fields = [
 export default function SopDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { canEdit } = useRole();
   const { data: sop, mutate } = useSWR<Sop>(`/api/sops/${id}`, fetcher);
   const { data: categories = [] } = useSWR<Category[]>("/api/categories", fetcher);
   const [form, setForm] = useState<Partial<Sop>>({});
@@ -85,13 +87,15 @@ export default function SopDetailPage() {
           title=""
           actions={
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setEditing(true)}
-                className="px-4 py-1.5 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue flex items-center gap-1.5"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                Edit
-              </button>
+              {canEdit && (
+                <button
+                  onClick={() => setEditing(true)}
+                  className="px-4 py-1.5 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue flex items-center gap-1.5"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                  Edit
+                </button>
+              )}
               <button onClick={() => router.push("/sops")} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">Back</button>
             </div>
           }
