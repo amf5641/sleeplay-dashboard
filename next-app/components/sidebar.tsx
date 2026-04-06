@@ -20,9 +20,9 @@ export default function Sidebar() {
 
   return (
     <aside className="w-60 bg-ultra-violet text-white flex flex-col h-screen sticky top-0 shrink-0">
-      <div className="px-5 py-5 border-b border-white/10">
+      <Link href="/sops" className="block px-5 py-5 border-b border-white/10">
         <Image src="/sleeplay-logo.svg" alt="Sleeplay" width={120} height={28} priority />
-      </div>
+      </Link>
       <nav className="flex-1 py-3 overflow-y-auto">
         {navItems.map((item) => {
           const active = pathname.startsWith(item.href);
