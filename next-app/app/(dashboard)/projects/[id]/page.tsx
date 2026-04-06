@@ -10,7 +10,8 @@ import PriorityBadge from "@/components/priority-badge";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 const STATUS_OPTIONS = ["On Track", "Slightly Off", "Off Track", "On Hold", "Done"] as const;
-const isUrl = (s: string) => /^https?:\/\/.+/i.test(s.trim());
+const isUrl = (s: string) => /^(https?:\/\/|www\.)\S+/i.test(s.trim());
+const toHref = (s: string) => { const t = s.trim(); return t.startsWith("http") ? t : `https://${t}`; };
 const statusColors: Record<string, string> = {
   "On Track": "bg-emerald-100 text-emerald-700",
   "Slightly Off": "bg-amber-100 text-amber-700",
@@ -789,8 +790,8 @@ export default function ProjectDetailPage() {
                                 <td key={cf.id} className="py-2 group/cfcell">
                                   {val && isUrl(val) ? (
                                     <div className="flex items-center gap-1">
-                                      <a href={val.trim()} target="_blank" rel="noopener noreferrer" className="text-xs text-royal-purple underline truncate max-w-[100px] hover:text-midnight-blue" title={val}>
-                                        {val.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}
+                                      <a href={toHref(val)} target="_blank" rel="noopener noreferrer" className="text-xs text-royal-purple underline truncate max-w-[100px] hover:text-midnight-blue" title={val}>
+                                        {val.trim().replace(/^https?:\/\/(www\.)?/, "").replace(/^www\./, "").split("/")[0]}
                                       </a>
                                       <input
                                         defaultValue={val}
@@ -1028,8 +1029,8 @@ export default function ProjectDetailPage() {
                         {cf.type === "text" ? (
                           <div>
                             {val && isUrl(val) && (
-                              <a href={val.trim()} target="_blank" rel="noopener noreferrer" className="text-sm text-royal-purple underline hover:text-midnight-blue block mb-1">
-                                {val.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}
+                              <a href={toHref(val)} target="_blank" rel="noopener noreferrer" className="text-sm text-royal-purple underline hover:text-midnight-blue block mb-1">
+                                {val.trim().replace(/^https?:\/\/(www\.)?/, "").replace(/^www\./, "").split("/")[0]}
                               </a>
                             )}
                             <input
