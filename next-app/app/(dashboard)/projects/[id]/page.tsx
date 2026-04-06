@@ -10,6 +10,7 @@ import PriorityBadge from "@/components/priority-badge";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 const STATUS_OPTIONS = ["On Track", "Slightly Off", "Off Track", "On Hold", "Done"] as const;
+const isUrl = (s: string) => /^https?:\/\/.+/i.test(s.trim());
 const statusColors: Record<string, string> = {
   "On Track": "bg-emerald-100 text-emerald-700",
   "Slightly Off": "bg-amber-100 text-amber-700",
@@ -785,14 +786,28 @@ export default function ProjectDetailPage() {
                             const opts: string[] = (() => { try { return JSON.parse(cf.options); } catch { return []; } })();
                             if (cf.type === "text") {
                               return (
-                                <td key={cf.id} className="py-2">
-                                  <input
-                                    defaultValue={val}
-                                    key={task.id + "-cf-" + cf.id + "-" + val}
-                                    onBlur={(e) => { if (e.target.value !== val) updateTaskCustomFieldValue(task.id, cf.id, e.target.value); }}
-                                    placeholder="—"
-                                    className="w-full px-1 py-0.5 text-xs border border-transparent hover:border-platinum focus:border-royal-purple rounded focus:outline-none bg-transparent"
-                                  />
+                                <td key={cf.id} className="py-2 group/cfcell">
+                                  {val && isUrl(val) ? (
+                                    <div className="flex items-center gap-1">
+                                      <a href={val.trim()} target="_blank" rel="noopener noreferrer" className="text-xs text-royal-purple underline truncate max-w-[100px] hover:text-midnight-blue" title={val}>
+                                        {val.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}
+                                      </a>
+                                      <input
+                                        defaultValue={val}
+                                        key={task.id + "-cf-" + cf.id + "-" + val}
+                                        onBlur={(e) => { if (e.target.value !== val) updateTaskCustomFieldValue(task.id, cf.id, e.target.value); }}
+                                        className="w-0 group-focus-within/cfcell:w-full px-1 py-0.5 text-xs border border-transparent focus:border-royal-purple rounded focus:outline-none bg-transparent"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <input
+                                      defaultValue={val}
+                                      key={task.id + "-cf-" + cf.id + "-" + val}
+                                      onBlur={(e) => { if (e.target.value !== val) updateTaskCustomFieldValue(task.id, cf.id, e.target.value); }}
+                                      placeholder="—"
+                                      className="w-full px-1 py-0.5 text-xs border border-transparent hover:border-platinum focus:border-royal-purple rounded focus:outline-none bg-transparent"
+                                    />
+                                  )}
                                 </td>
                               );
                             }
@@ -1011,13 +1026,20 @@ export default function ProjectDetailPage() {
                       <div className="w-32 px-3 py-2.5 text-xs text-brand-gray bg-white-smoke/50 flex-shrink-0">{cf.name}</div>
                       <div className="flex-1 px-3 py-2.5">
                         {cf.type === "text" ? (
-                          <input
-                            defaultValue={val}
-                            key={activeTask.id + "-cf-" + cf.id + "-" + val}
-                            onBlur={(e) => { if (e.target.value !== val) updateTaskCustomFieldValue(activeTask.id, cf.id, e.target.value); }}
-                            placeholder="—"
-                            className="text-sm border-0 focus:outline-none bg-transparent w-full"
-                          />
+                          <div>
+                            {val && isUrl(val) && (
+                              <a href={val.trim()} target="_blank" rel="noopener noreferrer" className="text-sm text-royal-purple underline hover:text-midnight-blue block mb-1">
+                                {val.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}
+                              </a>
+                            )}
+                            <input
+                              defaultValue={val}
+                              key={activeTask.id + "-cf-" + cf.id + "-" + val}
+                              onBlur={(e) => { if (e.target.value !== val) updateTaskCustomFieldValue(activeTask.id, cf.id, e.target.value); }}
+                              placeholder="—"
+                              className="text-sm border-0 focus:outline-none bg-transparent w-full"
+                            />
+                          </div>
                         ) : cf.type === "single-select" ? (
                           <select
                             value={val}
