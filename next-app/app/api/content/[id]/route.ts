@@ -13,6 +13,7 @@ export async function GET(
 
   const doc = await prisma.contentDocument.findUnique({
     where: { id },
+    include: { category: true },
   });
 
   if (!doc) return Response.json({ error: "Not found" }, { status: 404 });
@@ -30,10 +31,11 @@ export async function PUT(
   const body = await request.json();
   const data: Record<string, unknown> = {};
 
-  const fields = ["title", "content", "categoryId"];
+  const fields = ["title", "content"];
   for (const field of fields) {
     if (body[field] !== undefined) data[field] = body[field];
   }
+  if (body.categoryId !== undefined) data.categoryId = body.categoryId || null;
 
   const doc = await prisma.contentDocument.update({
     where: { id },

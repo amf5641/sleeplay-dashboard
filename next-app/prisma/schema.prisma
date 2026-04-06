@@ -114,6 +114,8 @@ model Task {
   status        String             @default("On Track")
   notes         String             @default("")
   completed     Boolean            @default(false)
+  repeatFreq    String?            // "daily", "weekly", "monthly", "yearly"
+  repeatDay     Int?               // day of week (0-6) for weekly, day of month for monthly
   createdAt     DateTime           @default(now())
   collaborators    TaskCollaborator[]
   customFieldValues TaskCustomFieldValue[]
@@ -168,10 +170,20 @@ model TaskCustomFieldValue {
   @@unique([taskId, customFieldId])
 }
 
+model ContentCategory {
+  id       String            @id @default(cuid())
+  name     String
+  parentId String?
+  parent   ContentCategory?  @relation("ContentCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children ContentCategory[] @relation("ContentCategoryTree")
+  docs     ContentDocument[]
+}
+
 model ContentDocument {
-  id         String   @id @default(cuid())
-  title      String   @default("Untitled")
-  categoryId String
-  content    String   @default("")
-  updatedAt  DateTime @updatedAt
+  id         String           @id @default(cuid())
+  title      String           @default("Untitled")
+  categoryId String?
+  category   ContentCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  content    String           @default("")
+  updatedAt  DateTime         @updatedAt
 }

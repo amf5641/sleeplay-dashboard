@@ -94,6 +94,7 @@ interface CustomField { id: string; name: string; type: string; options: string;
 interface TaskCustomFieldValue { id: string; taskId: string; customFieldId: string; value: string }
 interface Subtask {
   id: string; title: string; description: string; dueDate: string | null; priority: string; status: string; notes: string; completed: boolean; createdAt: string;
+  repeatFreq: string | null; repeatDay: number | null;
   collaborators: { person: Person }[];
   customFieldValues: TaskCustomFieldValue[];
 }
@@ -1019,6 +1020,51 @@ export default function ProjectDetailPage() {
                       placeholder="—"
                       className="text-sm border-0 focus:outline-none bg-transparent w-full"
                     />
+                  </div>
+                </div>
+                {/* Repeat */}
+                <div className="flex items-center border-b border-platinum">
+                  <div className="w-32 px-3 py-2.5 text-xs text-brand-gray bg-white-smoke/50 flex-shrink-0">Repeat</div>
+                  <div className="flex-1 px-3 py-2.5 flex items-center gap-2">
+                    <select
+                      value={activeTask.repeatFreq || ""}
+                      onChange={(e) => {
+                        const freq = e.target.value || null;
+                        updateTaskField(activeTask.id, "repeatFreq", freq);
+                        if (!freq) updateTaskField(activeTask.id, "repeatDay", null);
+                      }}
+                      className="text-sm border-0 focus:outline-none bg-transparent cursor-pointer"
+                    >
+                      <option value="">None</option>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="yearly">Yearly</option>
+                    </select>
+                    {activeTask.repeatFreq === "weekly" && (
+                      <select
+                        value={activeTask.repeatDay ?? ""}
+                        onChange={(e) => updateTaskField(activeTask.id, "repeatDay", e.target.value ? parseInt(e.target.value) : null)}
+                        className="text-xs border border-platinum rounded px-1.5 py-0.5 bg-white"
+                      >
+                        <option value="">Same day</option>
+                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => (
+                          <option key={i} value={i}>{d}</option>
+                        ))}
+                      </select>
+                    )}
+                    {activeTask.repeatFreq === "monthly" && (
+                      <select
+                        value={activeTask.repeatDay ?? ""}
+                        onChange={(e) => updateTaskField(activeTask.id, "repeatDay", e.target.value ? parseInt(e.target.value) : null)}
+                        className="text-xs border border-platinum rounded px-1.5 py-0.5 bg-white"
+                      >
+                        <option value="">Same day</option>
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </div>
                 {/* Custom fields */}

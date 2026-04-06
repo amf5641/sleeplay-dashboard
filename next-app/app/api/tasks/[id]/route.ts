@@ -3,6 +3,38 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+function computeNextDueDate(currentDue: string | null, freq: string, repeatDay: number | null): string {
+  const base = currentDue ? new Date(currentDue + "T00:00:00") : new Date();
+  switch (freq) {
+    case "daily":
+      base.setDate(base.getDate() + 1);
+      break;
+    case "weekly":
+      if (repeatDay !== null) {
+        // repeatDay = 0 (Sun) to 6 (Sat)
+        const diff = (repeatDay - base.getDay() + 7) % 7 || 7;
+        base.setDate(base.getDate() + diff);
+      } else {
+        base.setDate(base.getDate() + 7);
+      }
+      break;
+    case "monthly":
+      if (repeatDay !== null) {
+        base.setMonth(base.getMonth() + 1);
+        base.setDate(Math.min(repeatDay, new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate()));
+      } else {
+        base.setMonth(base.getMonth() + 1);
+      }
+      break;
+    case "yearly":
+      base.setFullYear(base.getFullYear() + 1);
+      break;
+    default:
+      base.setDate(base.getDate() + 1);
+  }
+  return base.toISOString().split("T")[0];
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -31,7 +63,7 @@ export async function PUT(
   const body = await request.json();
   const data: Record<string, unknown> = {};
 
-  const fields = ["title", "description", "dueDate", "priority", "completed", "status", "notes"];
+  const fields = ["title", "description", "dueDate", "priority", "completed", "status", "notes", "repeatFreq", "repeatDay"];
   for (const field of fields) {
     if (body[field] !== undefined) data[field] = body[field];
   }
@@ -93,8 +125,33 @@ export async function PUT(
   const task = await prisma.task.update({
     where: { id },
     data,
-    include: { collaborators: { include: { person: true } } },
+    include: { collaborators: { include: { person: true } }, subtasks: true },
   });
+
+  // Auto-create next occurrence when a repeating task is completed
+  if (body.completed === true && task.repeatFreq) {
+    const nextDue = computeNextDueDate(task.dueDate, task.repeatFreq, task.repeatDay);
+    const newTask = await prisma.task.create({
+      data: {
+        projectId: task.projectId,
+        parentId: task.parentId,
+        title: task.title,
+        description: task.description,
+        dueDate: nextDue,
+        priority: task.priority,
+        status: "On Track",
+        notes: task.notes,
+        repeatFreq: task.repeatFreq,
+        repeatDay: task.repeatDay,
+      },
+    });
+    // Copy collaborators to the new task
+    if (task.collaborators.length > 0) {
+      await prisma.taskCollaborator.createMany({
+        data: task.collaborators.map((c) => ({ taskId: newTask.id, personId: c.person.id })),
+      });
+    }
+  }
 
   return Response.json(task);
 }

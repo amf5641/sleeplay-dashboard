@@ -8,12 +8,15 @@ export async function GET(request: NextRequest) {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const categoryId = request.nextUrl.searchParams.get("categoryId");
+  const search = request.nextUrl.searchParams.get("search");
 
   const where: Record<string, unknown> = {};
   if (categoryId) where.categoryId = categoryId;
+  if (search) where.title = { contains: search, mode: "insensitive" };
 
   const docs = await prisma.contentDocument.findMany({
     where,
+    include: { category: true },
     orderBy: { title: "asc" },
   });
 
@@ -28,7 +31,7 @@ export async function POST(request: NextRequest) {
   const doc = await prisma.contentDocument.create({
     data: {
       title: body.title ?? "Untitled",
-      categoryId: body.categoryId,
+      categoryId: body.categoryId || null,
     },
   });
 
