@@ -13,6 +13,7 @@ interface Project { id: string; name: string; description: string; tasks: { comp
 export default function ProjectsPage() {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"grid" | "list">("grid");
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ name: "", description: "" });
 
@@ -48,43 +49,107 @@ export default function ProjectsPage() {
         }
       />
       <div className="p-6">
-        <div className="flex gap-2 mb-6">
-          {["all", "incomplete", "complete"].map((f) => (
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex gap-2">
+            {["all", "incomplete", "complete"].map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-4 py-1.5 text-sm rounded capitalize ${filter === f ? "bg-midnight-blue text-white" : "bg-white text-brand-gray border border-platinum hover:bg-white-smoke"}`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1 bg-white border border-platinum rounded overflow-hidden">
             <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 text-sm rounded capitalize ${filter === f ? "bg-midnight-blue text-white" : "bg-white text-brand-gray border border-platinum hover:bg-white-smoke"}`}
+              onClick={() => setView("grid")}
+              className={`px-3 py-1.5 text-sm ${view === "grid" ? "bg-midnight-blue text-white" : "text-brand-gray hover:bg-white-smoke"}`}
+              title="Grid view"
             >
-              {f}
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
             </button>
-          ))}
+            <button
+              onClick={() => setView("list")}
+              className={`px-3 py-1.5 text-sm ${view === "list" ? "bg-midnight-blue text-white" : "text-brand-gray hover:bg-white-smoke"}`}
+              title="List view"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+          </div>
         </div>
         {filtered.length === 0 ? (
           <EmptyState title="No projects" description="Create a project to start tracking tasks." />
-        ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
-            {filtered.map((proj) => {
-              const total = proj.tasks.length;
-              const done = proj.tasks.filter((t) => t.completed).length;
-              return (
-                <Link
-                  key={proj.id}
-                  href={`/projects/${proj.id}`}
-                  className="bg-white rounded-lg p-5 shadow-[0_4px_34px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_34px_rgba(0,0,0,0.08)] transition-shadow border border-platinum/50"
-                >
-                  <h3 className="font-semibold font-heading text-brand-black mb-1">{proj.name}</h3>
-                  {proj.description && <p className="text-xs text-brand-gray mb-2 line-clamp-2">{proj.description}</p>}
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 bg-platinum rounded-full overflow-hidden">
-                      <div className="h-full bg-royal-purple rounded-full" style={{ width: total ? `${(done / total) * 100}%` : "0%" }} />
+        ) : view === "grid" ? (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+              {filtered.map((proj) => {
+                const total = proj.tasks.length;
+                const done = proj.tasks.filter((t) => t.completed).length;
+                return (
+                  <Link
+                    key={proj.id}
+                    href={`/projects/${proj.id}`}
+                    className="bg-white rounded-lg p-5 shadow-[0_4px_34px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_34px_rgba(0,0,0,0.08)] transition-shadow border border-platinum/50"
+                  >
+                    <h3 className="font-semibold font-heading text-brand-black mb-1">{proj.name}</h3>
+                    {proj.description && <p className="text-xs text-brand-gray mb-2 line-clamp-2">{proj.description}</p>}
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-platinum rounded-full overflow-hidden">
+                        <div className="h-full bg-royal-purple rounded-full" style={{ width: total ? `${(done / total) * 100}%` : "0%" }} />
+                      </div>
+                      <span className="text-xs text-brand-gray">{done}/{total}</span>
                     </div>
-                    <span className="text-xs text-brand-gray">{done}/{total}</span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <table className="w-full bg-white rounded-lg border border-platinum/50 shadow-[0_4px_34px_rgba(0,0,0,0.05)] overflow-hidden">
+              <thead>
+                <tr className="text-left text-xs text-brand-gray border-b border-platinum bg-white-smoke/50">
+                  <th className="px-5 py-3 font-medium">Project</th>
+                  <th className="px-5 py-3 font-medium w-48">Progress</th>
+                  <th className="px-5 py-3 font-medium w-24 text-center">Tasks</th>
+                  <th className="px-5 py-3 font-medium w-32">Created</th>
+                  <th className="px-5 py-3 font-medium w-32">Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((proj) => {
+                  const total = proj.tasks.length;
+                  const done = proj.tasks.filter((t) => t.completed).length;
+                  const pct = total ? Math.round((done / total) * 100) : 0;
+                  return (
+                    <tr key={proj.id} className="border-b border-platinum/50 hover:bg-white-smoke/50 transition-colors">
+                      <td className="px-5 py-3">
+                        <Link href={`/projects/${proj.id}`} className="hover:text-royal-purple transition-colors">
+                          <div className="font-semibold font-heading text-sm text-brand-black">{proj.name}</div>
+                          {proj.description && <div className="text-xs text-brand-gray mt-0.5 line-clamp-1">{proj.description}</div>}
+                        </Link>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-platinum rounded-full overflow-hidden">
+                            <div className="h-full bg-royal-purple rounded-full" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-xs text-brand-gray w-8 text-right">{pct}%</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-center">
+                        <span className="text-sm text-brand-gray">{done}<span className="text-brand-gray/50">/{total}</span></span>
+                      </td>
+                      <td className="px-5 py-3 text-xs text-brand-gray whitespace-nowrap">
+                        {new Date(proj.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </td>
+                      <td className="px-5 py-3 text-xs text-brand-gray whitespace-nowrap">
+                        {new Date(proj.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
       </div>
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="New Project">
         <div className="space-y-3">
