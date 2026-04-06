@@ -81,6 +81,8 @@ export default function PtoPage() {
   const isAdmin = session?.user?.email === ADMIN_EMAIL;
   const userEmail = session?.user?.email;
 
+  const [view, setView] = useState<"list" | "calendar">("list");
+  const [calMonth, setCalMonth] = useState(new Date());
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -160,15 +162,98 @@ export default function PtoPage() {
         onSearch={setSearch}
         searchPlaceholder="Search by name..."
         actions={
-          <button
-            onClick={() => setModalOpen(true)}
-            className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue transition-colors"
-          >
-            + New Request
-          </button>
+          <div className="flex gap-2 items-center">
+            <button onClick={() => setView("list")} className={`px-3 py-1.5 text-sm rounded ${view === "list" ? "bg-midnight-blue text-white" : "bg-platinum hover:bg-lavender"}`}>List</button>
+            <button onClick={() => setView("calendar")} className={`px-3 py-1.5 text-sm rounded ${view === "calendar" ? "bg-midnight-blue text-white" : "bg-platinum hover:bg-lavender"}`}>Calendar</button>
+            <button
+              onClick={() => setModalOpen(true)}
+              className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue transition-colors"
+            >
+              + New Request
+            </button>
+          </div>
         }
       />
       <div className="p-6">
+        {view === "calendar" ? (() => {
+          const year = calMonth.getFullYear();
+          const month = calMonth.getMonth();
+          const firstDay = new Date(year, month, 1).getDay();
+          const daysInMonth = new Date(year, month + 1, 0).getDate();
+          const calDays: (number | null)[] = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+          const monthName = calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+          // Get approved requests that overlap with this month
+          const approvedRequests = requests.filter((r) => r.status === "approved" || r.status === "pending");
+
+          const getPtoForDay = (day: number) => {
+            const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+            const date = new Date(dateStr + "T12:00:00");
+            const dayOfWeek = date.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) return [];
+            return approvedRequests.filter((r) => {
+              const start = new Date(r.startDate.slice(0, 10) + "T00:00:00");
+              const end = new Date(r.endDate.slice(0, 10) + "T23:59:59");
+              return date >= start && date <= end;
+            });
+          };
+
+          const today = new Date();
+          const isToday = (day: number) => day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+
+          return (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <button onClick={() => setCalMonth(new Date(year, month - 1, 1))} className="px-3 py-1.5 text-sm bg-platinum rounded hover:bg-lavender">&larr;</button>
+                <h2 className="font-semibold font-heading text-lg">{monthName}</h2>
+                <button onClick={() => setCalMonth(new Date(year, month + 1, 1))} className="px-3 py-1.5 text-sm bg-platinum rounded hover:bg-lavender">&rarr;</button>
+              </div>
+              <div className="bg-white rounded-lg border border-platinum/50 shadow-[0_4px_34px_rgba(0,0,0,0.05)] overflow-hidden">
+                <div className="grid grid-cols-7 gap-px bg-platinum">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                    <div key={d} className="bg-white-smoke p-2 text-xs text-brand-gray text-center font-medium">{d}</div>
+                  ))}
+                  {calDays.map((day, i) => {
+                    const ptoForDay = day ? getPtoForDay(day) : [];
+                    const dayOfWeek = day ? new Date(year, month, day).getDay() : -1;
+                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                    return (
+                      <div key={i} className={`bg-white p-1.5 min-h-[90px] ${!day ? "bg-white-smoke/50" : ""} ${isWeekend && day ? "bg-gray-50" : ""}`}>
+                        {day && (
+                          <>
+                            <div className={`text-xs mb-1 ${isToday(day) ? "bg-royal-purple text-white w-5 h-5 rounded-full flex items-center justify-center font-bold" : "text-brand-gray"} ${isWeekend ? "text-brand-gray/40" : ""}`}>
+                              {day}
+                            </div>
+                            <div className="space-y-0.5">
+                              {ptoForDay.slice(0, 3).map((r) => (
+                                <div
+                                  key={r.id}
+                                  className={`text-[10px] px-1 py-0.5 rounded truncate ${r.status === "approved" ? (r.type === "vacation" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700") : "bg-yellow-100 text-yellow-700"}`}
+                                  title={`${r.person.name} — ${r.type} (${r.status})`}
+                                >
+                                  {r.person.name.split(" ")[0]}
+                                </div>
+                              ))}
+                              {ptoForDay.length > 3 && (
+                                <div className="text-[10px] text-brand-gray px-1">+{ptoForDay.length - 3} more</div>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex items-center gap-4 mt-3 text-xs text-brand-gray">
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-blue-100 border border-blue-200" /> Vacation (approved)</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-orange-100 border border-orange-200" /> Sick (approved)</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-yellow-100 border border-yellow-200" /> Pending</div>
+              </div>
+            </>
+          );
+        })() : (
+        <>
         {isAdmin && allBalances.length > 0 && (
           <div className="bg-white rounded-lg shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50 mb-6 overflow-hidden">
             <div className="px-5 py-3 border-b border-platinum bg-white-smoke">
@@ -368,6 +453,8 @@ export default function PtoPage() {
               </div>
             ))}
           </div>
+        )}
+        </>
         )}
       </div>
 
