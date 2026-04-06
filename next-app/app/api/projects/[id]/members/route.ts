@@ -26,6 +26,20 @@ export async function POST(
     include: { user: { select: { id: true, email: true } } },
   });
 
+  // Create notification for the added user
+  const project = await prisma.project.findUnique({ where: { id }, select: { name: true } });
+  if (project) {
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: "project_added",
+        title: "Added to project",
+        message: `You were added to "${project.name}"`,
+        linkUrl: `/projects/${id}`,
+      },
+    });
+  }
+
   return Response.json(member, { status: 201 });
 }
 
