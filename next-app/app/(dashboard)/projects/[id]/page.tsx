@@ -110,6 +110,7 @@ export default function ProjectDetailPage() {
   const [sectionsInitialized, setSectionsInitialized] = useState(false);
   const [dragSection, setDragSection] = useState<string | null>(null);
   const [dragOverSection, setDragOverSection] = useState<string | null>(null);
+  const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [confirmSectionDelete, setConfirmSectionDelete] = useState<string | null>(null);
   const [calMonth, setCalMonth] = useState(new Date());
@@ -278,6 +279,22 @@ export default function ProjectDetailPage() {
     mutate();
   };
 
+  const moveTaskToSection = async (taskId: string, targetSection: string | null) => {
+    const task = project.tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const currentSection = getTaskSection(task);
+    if (currentSection === targetSection) return;
+    // Remove existing section prefix, then add new one
+    let newNotes = task.notes.replace(/^\[[^\]]+\]\s*/, "");
+    if (targetSection) {
+      newNotes = `[${targetSection}] ${newNotes}`.trim();
+    }
+    await fetch(`/api/tasks/${taskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: newNotes }) });
+    setDragTaskId(null);
+    setDragOverSection(null);
+    mutate();
+  };
+
   // Calendar helpers
   const year = calMonth.getFullYear();
   const month = calMonth.getMonth();
@@ -340,7 +357,7 @@ export default function ProjectDetailPage() {
                     <React.Fragment key={sectionKey}>
                       {group.section && (
                         <tr
-                          className={`group bg-white-smoke/70 border-b border-platinum transition-colors ${dragOverSection === group.section && dragSection !== group.section ? "border-t-2 border-t-royal-purple" : ""} ${dragSection === group.section ? "opacity-50" : ""}`}
+                          className={`group bg-white-smoke/70 border-b border-platinum transition-colors ${dragOverSection === group.section && (dragTaskId || dragSection !== group.section) ? "border-t-2 border-t-royal-purple" : ""} ${dragSection === group.section ? "opacity-50" : ""}`}
                           onDragOver={(e) => {
                             e.preventDefault();
                             e.dataTransfer.dropEffect = "move";
@@ -349,9 +366,14 @@ export default function ProjectDetailPage() {
                           onDragLeave={() => setDragOverSection(null)}
                           onDrop={(e) => {
                             e.preventDefault();
-                            if (dragSection && group.section) handleSectionDrop(dragSection, group.section);
+                            if (dragTaskId && group.section) {
+                              moveTaskToSection(dragTaskId, group.section);
+                            } else if (dragSection && group.section) {
+                              handleSectionDrop(dragSection, group.section);
+                            }
                             setDragSection(null);
                             setDragOverSection(null);
+                            setDragTaskId(null);
                           }}
                         >
                           <td colSpan={9} className="py-2.5 px-2">
@@ -422,9 +444,29 @@ export default function ProjectDetailPage() {
                         </tr>
                       )}
                       {!isCollapsed && group.tasks.map((task) => (
-                        <tr key={task.id} className={`border-b border-platinum/50 hover:bg-white-smoke/50 ${activeTask?.id === task.id ? "bg-lavender/30" : ""}`}>
+                        <tr key={task.id} className={`group/task border-b border-platinum/50 hover:bg-white-smoke/50 ${activeTask?.id === task.id ? "bg-lavender/30" : ""} ${dragTaskId === task.id ? "opacity-50" : ""}`}>
                           <td className="py-2">
-                            <input type="checkbox" checked={task.completed} onChange={() => toggleTask(task.id, task.completed)} className="rounded" />
+                            <div className="flex items-center gap-1">
+                              {hasSections && (
+                                <div
+                                  draggable
+                                  onDragStart={(e) => {
+                                    setDragTaskId(task.id);
+                                    e.dataTransfer.effectAllowed = "move";
+                                  }}
+                                  onDragEnd={() => { setDragTaskId(null); setDragOverSection(null); }}
+                                  className="cursor-grab active:cursor-grabbing opacity-0 group-hover/task:opacity-100 transition-opacity"
+                                  title="Drag to a section"
+                                >
+                                  <svg className="w-3 h-3 text-brand-gray" viewBox="0 0 24 24" fill="currentColor">
+                                    <circle cx="9" cy="7" r="1.5" /><circle cx="15" cy="7" r="1.5" />
+                                    <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
+                                    <circle cx="9" cy="17" r="1.5" /><circle cx="15" cy="17" r="1.5" />
+                                  </svg>
+                                </div>
+                              )}
+                              <input type="checkbox" checked={task.completed} onChange={() => toggleTask(task.id, task.completed)} className="rounded" />
+                            </div>
                           </td>
                           <td
                             className={`py-2 text-sm cursor-pointer hover:text-royal-purple ${task.completed ? "line-through text-brand-gray" : ""}`}
