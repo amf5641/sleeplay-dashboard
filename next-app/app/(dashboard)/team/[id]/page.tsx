@@ -9,7 +9,7 @@ import ConfirmDialog from "@/components/confirm-dialog";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const ADMIN_EMAIL = "admin@sleeplay.com";
 
-interface Person { id: string; name: string; title: string; location: string; photo: string | null; goals: string; hobbies: string; interests: string; managerId: string | null }
+interface Person { id: string; name: string; email: string | null; title: string; location: string; photo: string | null; goals: string; hobbies: string; interests: string; managerId: string | null }
 interface PersonSummary { id: string; name: string }
 
 function resizeImage(file: File, maxSize: number): Promise<string> {
@@ -39,8 +39,12 @@ export default function TeamMemberPage() {
   const { id } = useParams();
   const router = useRouter();
   const { data: session } = useSession();
-  const isAdmin = session?.user?.email === ADMIN_EMAIL;
+  const userEmail = session?.user?.email;
+  const userRole = (session?.user as Record<string, unknown>)?.role as string | undefined;
+  const isAdmin = userEmail === ADMIN_EMAIL || userRole === "admin";
   const { data: person, mutate } = useSWR<Person>(`/api/people/${id}`, fetcher);
+  const isOwnProfile = person?.email === userEmail;
+  const canEdit = isAdmin || isOwnProfile;
   const { data: allPeople = [] } = useSWR<PersonSummary[]>("/api/people", fetcher);
   const [goals, setGoals] = useState("");
   const [hobbies, setHobbies] = useState("");
@@ -88,7 +92,11 @@ export default function TeamMemberPage() {
         actions={
           <div className="flex gap-3">
             {isAdmin && <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 text-sm rounded bg-red-50 text-red-700 hover:bg-red-100">Delete</button>}
-            <button onClick={() => { save(); router.push("/team"); }} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">Save & Back</button>
+            {canEdit ? (
+              <button onClick={() => { save(); router.push("/team"); }} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">Save & Back</button>
+            ) : (
+              <button onClick={() => router.push("/team")} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">Back</button>
+            )}
           </div>
         }
       />
@@ -102,10 +110,14 @@ export default function TeamMemberPage() {
                 {person.name.charAt(0)}
               </div>
             )}
-            <button onClick={() => fileRef.current?.click()} className="absolute -bottom-1 -right-1 w-8 h-8 bg-royal-purple text-white rounded-full flex items-center justify-center text-sm hover:bg-midnight-blue">
-              +
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={uploadPhoto} />
+            {canEdit && (
+              <>
+                <button onClick={() => fileRef.current?.click()} className="absolute -bottom-1 -right-1 w-8 h-8 bg-royal-purple text-white rounded-full flex items-center justify-center text-sm hover:bg-midnight-blue">
+                  +
+                </button>
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={uploadPhoto} />
+              </>
+            )}
           </div>
           <div>
             <h2 className="text-2xl font-bold font-heading">{person.name}</h2>
@@ -137,12 +149,16 @@ export default function TeamMemberPage() {
         ].map((field) => (
           <div key={field.label} className="mb-6">
             <label className="block text-sm font-medium text-brand-gray mb-2">{field.label}</label>
-            <textarea
-              value={field.value}
-              onChange={(e) => field.set(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y bg-white"
-            />
+            {canEdit ? (
+              <textarea
+                value={field.value}
+                onChange={(e) => field.set(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y bg-white"
+              />
+            ) : (
+              <p className="text-sm text-brand-black whitespace-pre-wrap">{field.value || "—"}</p>
+            )}
           </div>
         ))}
       </div>

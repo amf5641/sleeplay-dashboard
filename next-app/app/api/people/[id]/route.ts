@@ -28,29 +28,34 @@ export async function PUT(
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+  const user = session.user as { email?: string; role?: string };
   const body = await request.json();
   const data: Record<string, unknown> = {};
 
-  const fields = [
-    "name",
-    "title",
-    "location",
-    "managerId",
-    "photo",
-    "goals",
-    "hobbies",
-    "interests",
-  ];
+  // Check if the user is editing their own profile
+  const person = await prisma.person.findUnique({ where: { id }, select: { email: true } });
+  const isOwnProfile = person?.email === user.email;
+  const isAdmin = user.role === "admin" || user.email === "admin@sleeplay.com";
+
+  if (!isAdmin && !isOwnProfile) {
+    return Response.json({ error: "You can only edit your own profile" }, { status: 403 });
+  }
+
+  // Admins can edit all fields; non-admins can only edit personal fields
+  const fields = isAdmin
+    ? ["name", "title", "location", "managerId", "photo", "goals", "hobbies", "interests"]
+    : ["photo", "goals", "hobbies", "interests"];
+
   for (const field of fields) {
     if (body[field] !== undefined) data[field] = body[field];
   }
 
-  const person = await prisma.person.update({
+  const updated = await prisma.person.update({
     where: { id },
     data,
   });
 
-  return Response.json(person);
+  return Response.json(updated);
 }
 
 export async function DELETE(
