@@ -101,6 +101,7 @@ export default function ProjectDetailPage() {
   const [taskModal, setTaskModal] = useState(false);
   const [taskForm, setTaskForm] = useState({ title: "", dueDate: "", priority: "medium", status: "On Track", notes: "", description: "", collaborators: [] as string[] });
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmTaskDelete, setConfirmTaskDelete] = useState<string | null>(null);
   const [calMonth, setCalMonth] = useState(new Date());
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
@@ -210,8 +211,26 @@ export default function ProjectDetailPage() {
                     <td className="py-2 text-xs text-brand-gray whitespace-nowrap">
                       {new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                     </td>
-                    <td className="py-2 text-xs text-brand-gray">{task.dueDate || "—"}</td>
-                    <td className="py-2"><PriorityBadge priority={task.priority} /></td>
+                    <td className="py-2">
+                      <input
+                        type="date"
+                        defaultValue={task.dueDate || ""}
+                        key={task.id + "-due-" + task.dueDate}
+                        onChange={(e) => updateTaskField(task.id, "dueDate", e.target.value || null)}
+                        className="text-xs text-brand-gray border border-transparent hover:border-platinum focus:border-royal-purple rounded px-1 py-0.5 bg-transparent focus:outline-none cursor-pointer"
+                      />
+                    </td>
+                    <td className="py-2">
+                      <select
+                        value={task.priority}
+                        onChange={(e) => updateTaskField(task.id, "priority", e.target.value)}
+                        className={`px-2 py-0.5 text-xs font-medium rounded border-0 cursor-pointer ${task.priority === "high" ? "bg-red-100 text-red-700" : task.priority === "low" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}
+                      >
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                      </select>
+                    </td>
                     <td className="py-2">
                       <select
                         value={task.status}
@@ -221,8 +240,26 @@ export default function ProjectDetailPage() {
                         {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </td>
-                    <td className="py-2 text-xs text-brand-gray">
-                      {task.collaborators.map((c) => c.person.name).join(", ") || "—"}
+                    <td className="py-2">
+                      <select
+                        value={task.collaborators.length > 0 ? task.collaborators[0].person.id : ""}
+                        onChange={(e) => {
+                          if (e.target.value === "") {
+                            updateTaskCollaborators(task.id, []);
+                          } else {
+                            const existing = task.collaborators.map((c) => c.person.id);
+                            if (!existing.includes(e.target.value)) {
+                              updateTaskCollaborators(task.id, [e.target.value]);
+                            }
+                          }
+                        }}
+                        className="text-xs text-brand-gray border border-transparent hover:border-platinum focus:border-royal-purple rounded px-1 py-0.5 bg-transparent focus:outline-none cursor-pointer max-w-[140px]"
+                      >
+                        <option value="">—</option>
+                        {people.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
                     </td>
                     <td className="py-2">
                       <input
@@ -234,7 +271,7 @@ export default function ProjectDetailPage() {
                       />
                     </td>
                     <td className="py-2">
-                      <button onClick={() => deleteTask(task.id)} className="text-xs text-red-400 hover:text-red-600">Delete</button>
+                      <button onClick={() => setConfirmTaskDelete(task.id)} className="text-xs text-red-400 hover:text-red-600">Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -402,7 +439,7 @@ export default function ProjectDetailPage() {
               {/* Footer actions */}
               <div className="flex items-center justify-between text-xs text-brand-gray">
                 <span>Created {new Date(activeTask.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-                <button onClick={() => deleteTask(activeTask.id)} className="text-red-400 hover:text-red-600">Delete task</button>
+                <button onClick={() => setConfirmTaskDelete(activeTask.id)} className="text-red-400 hover:text-red-600">Delete task</button>
               </div>
             </div>
           </div>
@@ -446,6 +483,13 @@ export default function ProjectDetailPage() {
         </div>
       </Modal>
       <ConfirmDialog open={confirmDelete} onClose={() => setConfirmDelete(false)} onConfirm={deleteProject} title="Delete Project" message="Delete this project and all its tasks?" />
+      <ConfirmDialog
+        open={!!confirmTaskDelete}
+        onClose={() => setConfirmTaskDelete(null)}
+        onConfirm={() => { if (confirmTaskDelete) { deleteTask(confirmTaskDelete); setConfirmTaskDelete(null); } }}
+        title="Delete Task"
+        message="Are you sure you want to delete this task? This action cannot be undone."
+      />
     </>
   );
 }
