@@ -105,6 +105,7 @@ export default function ProjectDetailPage() {
   const { data: allUsers = [] } = useSWR<AppUser[]>("/api/users", fetcher);
 
   const [view, setView] = useState<"list" | "calendar">("list");
+  const [taskFilter, setTaskFilter] = useState<"all" | "incomplete" | "complete">("incomplete");
   const [membersModal, setMembersModal] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
   const [taskForm, setTaskForm] = useState({ title: "", dueDate: "", priority: "medium", status: "On Track", notes: "", description: "", collaborators: [] as string[], section: "" });
@@ -351,6 +352,18 @@ export default function ProjectDetailPage() {
         {/* Left: task list or calendar */}
         <div className={`flex-1 overflow-y-auto p-6 transition-all ${activeTask ? "border-r border-platinum" : ""}`}>
           {view === "list" ? (
+            <>
+            <div className="flex gap-2 mb-4">
+              {(["incomplete", "all", "complete"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setTaskFilter(f)}
+                  className={`px-4 py-1.5 text-sm rounded capitalize ${taskFilter === f ? "bg-midnight-blue text-white" : "bg-white text-brand-gray border border-platinum hover:bg-white-smoke"}`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
             <table className="w-full">
               <thead>
                 <tr className="text-left text-xs text-brand-gray border-b border-platinum">
@@ -460,7 +473,7 @@ export default function ProjectDetailPage() {
                           </td>
                         </tr>
                       )}
-                      {!isCollapsed && group.tasks.map((task) => (
+                      {!isCollapsed && group.tasks.filter((t) => taskFilter === "all" ? true : taskFilter === "incomplete" ? !t.completed : t.completed).map((task) => (
                         <tr key={task.id} className={`group/task border-b border-platinum/50 hover:bg-white-smoke/50 ${activeTask?.id === task.id ? "bg-lavender/30" : ""} ${dragTaskId === task.id ? "opacity-50" : ""}`}>
                           <td className="py-2">
                             <div className="flex items-center gap-1">
@@ -563,6 +576,7 @@ export default function ProjectDetailPage() {
                 })}
               </tbody>
             </table>
+            </>
           ) : (
             <>
               <div className="flex items-center justify-between mb-4">
