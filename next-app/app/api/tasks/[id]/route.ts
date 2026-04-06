@@ -38,6 +38,14 @@ export async function PUT(
 
   // Handle collaborators array specially
   if (body.collaborators !== undefined) {
+    // Get existing collaborators to find newly added ones
+    const existingCollabs = await prisma.taskCollaborator.findMany({
+      where: { taskId: id },
+      select: { personId: true },
+    });
+    const existingPersonIds = new Set(existingCollabs.map((c) => c.personId));
+    const newPersonIds = (body.collaborators as string[]).filter((pid) => !existingPersonIds.has(pid));
+
     await prisma.taskCollaborator.deleteMany({
       where: { taskId: id },
     });
@@ -49,6 +57,31 @@ export async function PUT(
           personId,
         })),
       });
+    }
+
+    // Notify newly added collaborators
+    if (newPersonIds.length > 0) {
+      const taskData = await prisma.task.findUnique({ where: { id }, select: { title: true, projectId: true } });
+      const project = taskData ? await prisma.project.findUnique({ where: { id: taskData.projectId }, select: { name: true } }) : null;
+      const people = await prisma.person.findMany({
+        where: { id: { in: newPersonIds } },
+        select: { email: true },
+      });
+      for (const person of people) {
+        if (!person.email) continue;
+        const user = await prisma.user.findUnique({ where: { email: person.email } });
+        if (user) {
+          await prisma.notification.create({
+            data: {
+              userId: user.id,
+              type: "task_assigned",
+              title: "New task assigned",
+              message: `You were assigned "${taskData?.title}"${project ? ` in ${project.name}` : ""}`,
+              linkUrl: `/projects/${taskData?.projectId}`,
+            },
+          });
+        }
+      }
     }
   }
 

@@ -29,5 +29,29 @@ export async function POST(request: NextRequest) {
     include: { collaborators: true },
   });
 
+  // Notify assigned collaborators
+  if (body.collaborators?.length) {
+    const project = await prisma.project.findUnique({ where: { id: body.projectId }, select: { name: true } });
+    const people = await prisma.person.findMany({
+      where: { id: { in: body.collaborators } },
+      select: { email: true },
+    });
+    for (const person of people) {
+      if (!person.email) continue;
+      const user = await prisma.user.findUnique({ where: { email: person.email } });
+      if (user) {
+        await prisma.notification.create({
+          data: {
+            userId: user.id,
+            type: "task_assigned",
+            title: "New task assigned",
+            message: `You were assigned "${task.title}"${project ? ` in ${project.name}` : ""}`,
+            linkUrl: `/projects/${body.projectId}`,
+          },
+        });
+      }
+    }
+  }
+
   return Response.json(task, { status: 201 });
 }
