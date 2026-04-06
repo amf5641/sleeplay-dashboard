@@ -26,6 +26,8 @@ export default function SopsPage() {
   const [renameValue, setRenameValue] = useState("");
   const [confirmDeleteCat, setConfirmDeleteCat] = useState<Category | null>(null);
   const [confirmDeleteSop, setConfirmDeleteSop] = useState<Sop | null>(null);
+  const [dragSopId, setDragSopId] = useState<string | null>(null);
+  const [dragOverCat, setDragOverCat] = useState<string | null>(null);
 
   const catParam = selectedCat ? `&categoryId=${selectedCat}` : "";
   const { data: sops = [], mutate } = useSWR<Sop[]>(`/api/sops?search=${encodeURIComponent(search)}${catParam}`, fetcher);
@@ -83,6 +85,17 @@ export default function SopsPage() {
     mutate();
   };
 
+  const moveSopToCategory = async (sopId: string, categoryId: string | null) => {
+    await fetch(`/api/sops/${sopId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ categoryId }),
+    });
+    setDragSopId(null);
+    setDragOverCat(null);
+    mutate();
+  };
+
   const topLevelCats = categories.filter((c) => !c.parentId);
 
   function renderCatTree(cats: Category[], depth = 0) {
@@ -108,8 +121,11 @@ export default function SopsPage() {
             ) : (
               <button
                 onClick={() => setSelectedCat(isSelected ? null : cat.id)}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverCat(cat.id); }}
+                onDragLeave={() => { if (dragOverCat === cat.id) setDragOverCat(null); }}
+                onDrop={(e) => { e.preventDefault(); if (dragSopId) moveSopToCategory(dragSopId, cat.id); }}
                 className={`flex-1 text-left px-3 py-1.5 text-sm rounded transition-colors truncate ${
-                  isSelected ? "bg-lavender text-midnight-blue font-medium" : "text-brand-gray hover:bg-white-smoke"
+                  dragOverCat === cat.id ? "bg-royal-purple/20 ring-2 ring-royal-purple" : isSelected ? "bg-lavender text-midnight-blue font-medium" : "text-brand-gray hover:bg-white-smoke"
                 }`}
                 style={{ paddingLeft: `${12 + depth * 16}px` }}
               >
@@ -166,7 +182,12 @@ export default function SopsPage() {
         <div className="w-56 bg-white border-r border-platinum p-3 overflow-y-auto flex flex-col">
           <button
             onClick={() => setSelectedCat(null)}
-            className={`w-full text-left px-3 py-1.5 text-sm rounded mb-1 ${!selectedCat ? "bg-lavender text-midnight-blue font-medium" : "text-brand-gray hover:bg-white-smoke"}`}
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverCat("__none__"); }}
+            onDragLeave={() => { if (dragOverCat === "__none__") setDragOverCat(null); }}
+            onDrop={(e) => { e.preventDefault(); if (dragSopId) moveSopToCategory(dragSopId, null); }}
+            className={`w-full text-left px-3 py-1.5 text-sm rounded mb-1 ${
+              dragOverCat === "__none__" ? "bg-royal-purple/20 ring-2 ring-royal-purple" : !selectedCat ? "bg-lavender text-midnight-blue font-medium" : "text-brand-gray hover:bg-white-smoke"
+            }`}
           >
             All SOPs
           </button>
@@ -187,7 +208,10 @@ export default function SopsPage() {
               {sops.map((sop) => (
                 <div
                   key={sop.id}
-                  className="group relative bg-white rounded-lg p-5 shadow-[0_4px_34px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_34px_rgba(0,0,0,0.08)] transition-shadow border border-platinum/50"
+                  draggable
+                  onDragStart={(e) => { setDragSopId(sop.id); e.dataTransfer.effectAllowed = "move"; }}
+                  onDragEnd={() => { setDragSopId(null); setDragOverCat(null); }}
+                  className={`group relative bg-white rounded-lg p-5 shadow-[0_4px_34px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_34px_rgba(0,0,0,0.08)] transition-shadow border border-platinum/50 cursor-grab active:cursor-grabbing ${dragSopId === sop.id ? "opacity-50" : ""}`}
                 >
                   <Link href={`/sops/${sop.id}`} className="block">
                     <h3 className="font-semibold font-heading text-brand-black mb-1 truncate pr-6">{sop.title}</h3>
