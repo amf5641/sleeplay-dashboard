@@ -802,7 +802,7 @@ export default function ProjectDetailPage() {
                                   <select
                                     value={val}
                                     onChange={(e) => updateTaskCustomFieldValue(task.id, cf.id, e.target.value)}
-                                    className="text-xs text-brand-gray border border-transparent hover:border-platinum focus:border-royal-purple rounded px-1 py-0.5 bg-transparent focus:outline-none cursor-pointer max-w-[130px]"
+                                    className="text-xs text-brand-gray border border-platinum hover:border-royal-purple rounded px-1.5 py-0.5 bg-white focus:outline-none cursor-pointer max-w-[130px]"
                                   >
                                     <option value="">—</option>
                                     {opts.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -812,11 +812,12 @@ export default function ProjectDetailPage() {
                             }
                             // multi-select
                             const selected: string[] = (() => { try { return val ? JSON.parse(val) : []; } catch { return []; } })();
+                            const remaining = opts.filter((o) => !selected.includes(o));
                             return (
                               <td key={cf.id} className="py-2">
                                 <div className="flex flex-wrap gap-0.5 items-center">
                                   {selected.map((s) => (
-                                    <span key={s} className="inline-flex items-center gap-0.5 px-1.5 py-0 bg-lavender rounded text-[11px]">
+                                    <span key={s} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-lavender rounded text-[11px]">
                                       {s}
                                       <button onClick={() => {
                                         const next = selected.filter((x) => x !== s);
@@ -824,18 +825,20 @@ export default function ProjectDetailPage() {
                                       }} className="text-brand-gray hover:text-red-500 text-[10px]">&times;</button>
                                     </span>
                                   ))}
-                                  <select
-                                    value=""
-                                    onChange={(e) => {
-                                      if (e.target.value && !selected.includes(e.target.value)) {
-                                        updateTaskCustomFieldValue(task.id, cf.id, JSON.stringify([...selected, e.target.value]));
-                                      }
-                                    }}
-                                    className="text-[11px] text-brand-gray border-0 bg-transparent focus:outline-none cursor-pointer w-8"
-                                  >
-                                    <option value="">+</option>
-                                    {opts.filter((o) => !selected.includes(o)).map((o) => <option key={o} value={o}>{o}</option>)}
-                                  </select>
+                                  {remaining.length > 0 && (
+                                    <select
+                                      value=""
+                                      onChange={(e) => {
+                                        if (e.target.value && !selected.includes(e.target.value)) {
+                                          updateTaskCustomFieldValue(task.id, cf.id, JSON.stringify([...selected, e.target.value]));
+                                        }
+                                      }}
+                                      className="text-xs text-brand-gray border border-platinum hover:border-royal-purple rounded px-1.5 py-0.5 bg-white focus:outline-none cursor-pointer"
+                                    >
+                                      <option value="">+ Add</option>
+                                      {remaining.map((o) => <option key={o} value={o}>{o}</option>)}
+                                    </select>
+                                  )}
                                 </div>
                               </td>
                             );
