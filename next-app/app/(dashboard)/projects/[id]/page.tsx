@@ -97,7 +97,7 @@ interface Subtask {
 interface Task extends Subtask {
   subtasks: Subtask[];
 }
-interface Project { id: string; name: string; description: string; status: string; notes: string; sectionOrder: string; tasks: Task[]; members: ProjectMember[]; customFields: CustomField[] }
+interface Project { id: string; name: string; description: string; status: string; notes: string; sectionOrder: string; columnConfig: string; tasks: Task[]; members: ProjectMember[]; customFields: CustomField[] }
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -131,6 +131,8 @@ export default function ProjectDetailPage() {
   const [editFieldId, setEditFieldId] = useState<string | null>(null);
   const [editFieldOptions, setEditFieldOptions] = useState<string[]>([]);
   const [editFieldOptionInput, setEditFieldOptionInput] = useState("");
+  const [columnsDropdown, setColumnsDropdown] = useState(false);
+  const columnsDropdownRef = useRef<HTMLDivElement>(null);
 
   // Default all sections to collapsed on first load, and auto-select task from URL
   useEffect(() => {
@@ -252,7 +254,44 @@ export default function ProjectDetailPage() {
     return task.customFieldValues?.find((v) => v.customFieldId === fieldId)?.value || "";
   };
 
+  const BUILTIN_COLUMNS = [
+    { key: "created", label: "Created" },
+    { key: "dueDate", label: "Due Date" },
+    { key: "priority", label: "Priority" },
+    { key: "status", label: "Status" },
+    { key: "collaborators", label: "Collaborators" },
+    { key: "notes", label: "Notes" },
+  ];
+
+  // Close columns dropdown on outside click
+  useEffect(() => {
+    if (!columnsDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (columnsDropdownRef.current && !columnsDropdownRef.current.contains(e.target as Node)) {
+        setColumnsDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [columnsDropdown]);
+
   if (!project) return <div className="p-8 text-brand-gray">Loading...</div>;
+
+  const hiddenColumns: string[] = (() => {
+    try { const c = JSON.parse(project.columnConfig || "{}"); return c.hiddenColumns || []; } catch { return []; }
+  })();
+
+  const isColumnVisible = (key: string) => !hiddenColumns.includes(key);
+
+  const toggleColumn = async (key: string) => {
+    const next = hiddenColumns.includes(key) ? hiddenColumns.filter((k) => k !== key) : [...hiddenColumns, key];
+    await fetch(`/api/projects/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ columnConfig: JSON.stringify({ hiddenColumns: next }) }),
+    });
+    mutate();
+  };
 
   // Keep selectedTask in sync with project data
   const activeTask = selectedTask ? project.tasks.find((t) => t.id === selectedTask.id) || null : null;
@@ -423,12 +462,12 @@ export default function ProjectDetailPage() {
                 <tr className="text-left text-xs text-brand-gray border-b border-platinum">
                   <th className="pb-2 w-8"></th>
                   <th className="pb-2">Task</th>
-                  <th className="pb-2 w-28">Created</th>
-                  <th className="pb-2 w-32">Due Date</th>
-                  <th className="pb-2 w-24">Priority</th>
-                  <th className="pb-2 w-32">Status</th>
-                  <th className="pb-2 w-40">Collaborators</th>
-                  <th className="pb-2">Notes</th>
+                  {isColumnVisible("created") && <th className="pb-2 w-28">Created</th>}
+                  {isColumnVisible("dueDate") && <th className="pb-2 w-32">Due Date</th>}
+                  {isColumnVisible("priority") && <th className="pb-2 w-24">Priority</th>}
+                  {isColumnVisible("status") && <th className="pb-2 w-32">Status</th>}
+                  {isColumnVisible("collaborators") && <th className="pb-2 w-40">Collaborators</th>}
+                  {isColumnVisible("notes") && <th className="pb-2">Notes</th>}
                   {(project.customFields || []).map((cf) => (
                     <th key={cf.id} className="pb-2 w-36">
                       <div className="group/cfh flex items-center gap-1">
@@ -455,14 +494,50 @@ export default function ProjectDetailPage() {
                       </div>
                     </th>
                   ))}
-                  <th className="pb-2 w-10">
+                  <th className="pb-2 w-10 relative">
                     <button
-                      onClick={() => setAddFieldModal(true)}
+                      onClick={() => setColumnsDropdown(!columnsDropdown)}
                       className="p-1 rounded hover:bg-lavender text-brand-gray hover:text-royal-purple"
-                      title="Add custom field"
+                      title="Manage columns"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                     </button>
+                    {columnsDropdown && (
+                      <div ref={columnsDropdownRef} className="absolute right-0 top-8 z-50 bg-white border border-platinum rounded-lg shadow-lg w-56 py-2">
+                        <div className="px-3 py-1.5 text-xs font-semibold text-brand-gray uppercase tracking-wide">Columns</div>
+                        {BUILTIN_COLUMNS.map((col) => (
+                          <label key={col.key} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white-smoke cursor-pointer text-sm">
+                            <input
+                              type="checkbox"
+                              checked={isColumnVisible(col.key)}
+                              onChange={() => toggleColumn(col.key)}
+                              className="rounded"
+                            />
+                            {col.label}
+                          </label>
+                        ))}
+                        {(project.customFields || []).length > 0 && (
+                          <>
+                            <div className="border-t border-platinum my-1" />
+                            <div className="px-3 py-1.5 text-xs font-semibold text-brand-gray uppercase tracking-wide">Custom Fields</div>
+                            {(project.customFields || []).map((cf) => (
+                              <div key={cf.id} className="flex items-center justify-between px-3 py-1.5 hover:bg-white-smoke text-sm">
+                                <span>{cf.name}</span>
+                                <button onClick={() => deleteCustomField(cf.id)} className="text-xs text-red-400 hover:text-red-600">Remove</button>
+                              </div>
+                            ))}
+                          </>
+                        )}
+                        <div className="border-t border-platinum my-1" />
+                        <button
+                          onClick={() => { setColumnsDropdown(false); setAddFieldModal(true); }}
+                          className="w-full text-left px-3 py-1.5 text-sm text-royal-purple hover:bg-lavender/30 flex items-center gap-1.5"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                          Add custom field
+                        </button>
+                      </div>
+                    )}
                   </th>
                   <th className="pb-2 w-16"></th>
                 </tr>
@@ -471,7 +546,7 @@ export default function ProjectDetailPage() {
                   if (!cf || cf.type === "text") return null;
                   return (
                     <tr className="border-b border-platinum bg-lavender/20">
-                      <td colSpan={9 + (project.customFields || []).length} className="py-2 px-3">
+                      <td colSpan={4 + BUILTIN_COLUMNS.filter((c) => isColumnVisible(c.key)).length + (project.customFields || []).length} className="py-2 px-3">
                         <div className="flex items-center gap-2 flex-wrap text-xs">
                           <span className="font-medium text-brand-black">Options for &ldquo;{cf.name}&rdquo;:</span>
                           {editFieldOptions.map((opt, i) => (
@@ -533,7 +608,7 @@ export default function ProjectDetailPage() {
                             setDragTaskId(null);
                           }}
                         >
-                          <td colSpan={10 + (project.customFields || []).length} className="py-2.5 px-2">
+                          <td colSpan={4 + BUILTIN_COLUMNS.filter((c) => isColumnVisible(c.key)).length + (project.customFields || []).length} className="py-2.5 px-2">
                             <div className="flex items-center gap-2">
                               <div
                                 className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
@@ -631,9 +706,12 @@ export default function ProjectDetailPage() {
                           >
                             {task.title}
                           </td>
+                          {isColumnVisible("created") && (
                           <td className="py-2 text-xs text-brand-gray whitespace-nowrap">
                             {new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                           </td>
+                          )}
+                          {isColumnVisible("dueDate") && (
                           <td className="py-2">
                             <input
                               type="date"
@@ -643,6 +721,8 @@ export default function ProjectDetailPage() {
                               className="text-xs text-brand-gray border border-transparent hover:border-platinum focus:border-royal-purple rounded px-1 py-0.5 bg-transparent focus:outline-none cursor-pointer"
                             />
                           </td>
+                          )}
+                          {isColumnVisible("priority") && (
                           <td className="py-2">
                             <select
                               value={task.priority}
@@ -654,6 +734,8 @@ export default function ProjectDetailPage() {
                               <option value="low">Low</option>
                             </select>
                           </td>
+                          )}
+                          {isColumnVisible("status") && (
                           <td className="py-2">
                             <select
                               value={task.status}
@@ -663,6 +745,8 @@ export default function ProjectDetailPage() {
                               {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                             </select>
                           </td>
+                          )}
+                          {isColumnVisible("collaborators") && (
                           <td className="py-2">
                             <select
                               value={task.collaborators.length > 0 ? task.collaborators[0].person.id : ""}
@@ -684,6 +768,8 @@ export default function ProjectDetailPage() {
                               ))}
                             </select>
                           </td>
+                          )}
+                          {isColumnVisible("notes") && (
                           <td className="py-2">
                             <input
                               defaultValue={task.notes}
@@ -693,6 +779,7 @@ export default function ProjectDetailPage() {
                               className="w-full px-1 py-0.5 text-xs border border-transparent hover:border-platinum focus:border-royal-purple rounded focus:outline-none bg-transparent"
                             />
                           </td>
+                          )}
                           {(project.customFields || []).map((cf) => {
                             const val = getFieldValue(task, cf.id);
                             const opts: string[] = (() => { try { return JSON.parse(cf.options); } catch { return []; } })();
