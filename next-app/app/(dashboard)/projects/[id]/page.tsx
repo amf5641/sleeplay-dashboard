@@ -549,11 +549,11 @@ export default function ProjectDetailPage() {
                   )}
                 </div>
               ) : (
-                <table className="w-full border-collapse">
+                <table className="border-collapse" style={{ width: "auto", minWidth: "100%" }}>
                   <thead className="sticky top-0 z-10 bg-white">
                     <tr className="text-left border-b border-platinum">
                       <th className="w-10 py-2 px-2 border-r border-platinum/40" />
-                      <th className="py-2 px-3 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Task name</th>
+                      <th className="py-2 px-3 w-[320px] min-w-[240px] text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Task name</th>
                       {isColumnVisible("created") && <th className="py-2 px-3 w-28 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Created</th>}
                       {isColumnVisible("dueDate") && <th className="py-2 px-3 w-32 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Due date</th>}
                       {isColumnVisible("priority") && <th className="py-2 px-3 w-24 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Priority</th>}
@@ -687,7 +687,7 @@ export default function ProjectDetailPage() {
                                 </div>
                               </td>
                               <td
-                                className={`py-2.5 px-3 text-sm cursor-pointer transition-colors duration-150 border-r border-platinum/40 ${task.completed ? "line-through text-brand-gray/50" : "text-brand-black font-medium hover:text-royal-purple"}`}
+                                className={`py-2.5 px-3 w-[320px] min-w-[240px] text-sm cursor-pointer transition-colors duration-150 border-r border-platinum/40 ${task.completed ? "line-through text-brand-gray/50" : "text-brand-black font-medium hover:text-royal-purple"}`}
                                 onClick={() => setSelectedTask(activeTask?.id === task.id ? null : task)}
                               >
                                 <div className="flex items-center gap-2">
