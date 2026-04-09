@@ -509,11 +509,49 @@ export default function ProjectDetailPage() {
         <div className={`flex-1 overflow-y-auto transition-all duration-200 ${activeTask ? "" : ""}`}>
           {view === "list" ? (
             <div className="min-w-0">
-              {/* Column headers */}
-              <div className="sticky top-0 z-10 bg-white border-b border-platinum">
+              {/* Edit field options bar */}
+              {editFieldId && (() => {
+                const cf = (project.customFields || []).find((f) => f.id === editFieldId);
+                if (!cf || cf.type === "text") return null;
+                return (
+                  <div className="px-4 py-2 bg-lavender/20 border-b border-platinum/50">
+                    <div className="flex items-center gap-2 flex-wrap text-xs">
+                      <span className="font-medium text-brand-black">Options for &ldquo;{cf.name}&rdquo;:</span>
+                      {editFieldOptions.map((opt, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-platinum rounded">
+                          {opt}
+                          <button onClick={() => { const next = editFieldOptions.filter((_, j) => j !== i); setEditFieldOptions(next); updateCustomFieldOptions(cf.id, next); }} className="text-brand-gray hover:text-red-500">&times;</button>
+                        </span>
+                      ))}
+                      <input
+                        value={editFieldOptionInput} onChange={(e) => setEditFieldOptionInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter" && editFieldOptionInput.trim()) { const next = [...editFieldOptions, editFieldOptionInput.trim()]; setEditFieldOptions(next); setEditFieldOptionInput(""); updateCustomFieldOptions(cf.id, next); } }}
+                        placeholder="Add option + Enter" className="px-2 py-0.5 border border-platinum rounded text-xs bg-white focus:outline-none focus:border-royal-purple w-32"
+                      />
+                      <button onClick={() => setEditFieldId(null)} className="text-brand-gray hover:text-brand-black ml-2">Done</button>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Task rows */}
+              {project.tasks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-full bg-lavender/30 flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-royal-purple/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  </div>
+                  <h3 className="text-lg font-semibold font-heading text-brand-black mb-1">No tasks yet</h3>
+                  <p className="text-sm text-brand-gray mb-4">Get started by adding your first task.</p>
+                  {canEdit && (
+                    <button onClick={openAddTask} className="px-4 py-2 text-sm rounded-lg bg-royal-purple text-white hover:bg-midnight-blue transition-colors duration-150">
+                      Add a task
+                    </button>
+                  )}
+                </div>
+              ) : (
                 <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="text-left">
+                  <thead className="sticky top-0 z-10 bg-white">
+                    <tr className="text-left border-b border-platinum">
                       <th className="w-10 py-2 px-2 border-r border-platinum/40" />
                       <th className="py-2 px-3 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Task name</th>
                       {isColumnVisible("created") && <th className="py-2 px-3 w-28 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Created</th>}
@@ -521,7 +559,7 @@ export default function ProjectDetailPage() {
                       {isColumnVisible("priority") && <th className="py-2 px-3 w-24 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Priority</th>}
                       {isColumnVisible("status") && <th className="py-2 px-3 w-32 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Status</th>}
                       {isColumnVisible("collaborators") && <th className="py-2 px-3 w-36 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Assignee</th>}
-                      {isColumnVisible("notes") && <th className="py-2 px-3 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Notes</th>}
+                      {isColumnVisible("notes") && <th className="py-2 px-3 w-28 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Notes</th>}
                       {(project.customFields || []).map((cf) => (
                         <th key={cf.id} className="py-2 px-3 w-36 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">
                           <div className="group/cfh flex items-center gap-1">
@@ -549,14 +587,14 @@ export default function ProjectDetailPage() {
                         </th>
                       ))}
                       <th className="py-2 px-2 w-10 relative">
-                        <button onClick={() => setColumnsDropdown(!columnsDropdown)} className="p-1 rounded hover:bg-white-smoke text-brand-gray hover:text-royal-purple transition-colors duration-150" title="Manage columns">
+                        <button onClick={() => setColumnsDropdown(!columnsDropdown)} className="p-1 rounded hover:bg-gray-50 text-brand-gray hover:text-royal-purple transition-colors duration-150" title="Manage columns">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                         </button>
                         {columnsDropdown && (
                           <div ref={columnsDropdownRef} className="absolute right-0 top-8 z-50 bg-white border border-platinum rounded-lg shadow-lg w-56 py-2">
                             <div className="px-3 py-1.5 text-[11px] font-semibold text-brand-gray uppercase tracking-wider">Columns</div>
                             {BUILTIN_COLUMNS.map((col) => (
-                              <label key={col.key} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white-smoke cursor-pointer text-sm transition-colors duration-150">
+                              <label key={col.key} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm transition-colors duration-150">
                                 <input type="checkbox" checked={isColumnVisible(col.key)} onChange={() => toggleColumn(col.key)} className="rounded" />
                                 {col.label}
                               </label>
@@ -566,7 +604,7 @@ export default function ProjectDetailPage() {
                                 <div className="border-t border-platinum my-1" />
                                 <div className="px-3 py-1.5 text-[11px] font-semibold text-brand-gray uppercase tracking-wider">Custom Fields</div>
                                 {(project.customFields || []).map((cf) => (
-                                  <div key={cf.id} className="flex items-center justify-between px-3 py-1.5 hover:bg-white-smoke text-sm">
+                                  <div key={cf.id} className="flex items-center justify-between px-3 py-1.5 hover:bg-gray-50 text-sm">
                                     <span>{cf.name}</span>
                                     <button onClick={() => deleteCustomField(cf.id)} className="text-xs text-red-400 hover:text-red-600">Remove</button>
                                   </div>
@@ -583,48 +621,6 @@ export default function ProjectDetailPage() {
                       </th>
                     </tr>
                   </thead>
-                </table>
-                {editFieldId && (() => {
-                  const cf = (project.customFields || []).find((f) => f.id === editFieldId);
-                  if (!cf || cf.type === "text") return null;
-                  return (
-                    <div className="px-4 py-2 bg-lavender/20 border-t border-platinum/50">
-                      <div className="flex items-center gap-2 flex-wrap text-xs">
-                        <span className="font-medium text-brand-black">Options for &ldquo;{cf.name}&rdquo;:</span>
-                        {editFieldOptions.map((opt, i) => (
-                          <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-platinum rounded">
-                            {opt}
-                            <button onClick={() => { const next = editFieldOptions.filter((_, j) => j !== i); setEditFieldOptions(next); updateCustomFieldOptions(cf.id, next); }} className="text-brand-gray hover:text-red-500">&times;</button>
-                          </span>
-                        ))}
-                        <input
-                          value={editFieldOptionInput} onChange={(e) => setEditFieldOptionInput(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter" && editFieldOptionInput.trim()) { const next = [...editFieldOptions, editFieldOptionInput.trim()]; setEditFieldOptions(next); setEditFieldOptionInput(""); updateCustomFieldOptions(cf.id, next); } }}
-                          placeholder="Add option + Enter" className="px-2 py-0.5 border border-platinum rounded text-xs bg-white focus:outline-none focus:border-royal-purple w-32"
-                        />
-                        <button onClick={() => setEditFieldId(null)} className="text-brand-gray hover:text-brand-black ml-2">Done</button>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Task rows */}
-              {project.tasks.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <div className="w-16 h-16 rounded-full bg-lavender/30 flex items-center justify-center mb-4">
-                    <svg className="w-8 h-8 text-royal-purple/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-                  </div>
-                  <h3 className="text-lg font-semibold font-heading text-brand-black mb-1">No tasks yet</h3>
-                  <p className="text-sm text-brand-gray mb-4">Get started by adding your first task.</p>
-                  {canEdit && (
-                    <button onClick={openAddTask} className="px-4 py-2 text-sm rounded-lg bg-royal-purple text-white hover:bg-midnight-blue transition-colors duration-150">
-                      Add a task
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <table className="w-full border-collapse">
                   <tbody>
                     {(hasSections ? groupedTasks : [{ section: null, tasks: project.tasks }]).map((group, groupIdx) => {
                       const sectionKey = group.section || "__all__";
@@ -747,7 +743,7 @@ export default function ProjectDetailPage() {
                                 </td>
                               )}
                               {isColumnVisible("notes") && (
-                                <td className="py-2.5 px-3 border-r border-platinum/40">
+                                <td className="py-2.5 px-3 w-28 border-r border-platinum/40">
                                   <input defaultValue={task.notes} key={task.id + task.notes} onBlur={(e) => { if (e.target.value !== task.notes) updateTaskField(task.id, "notes", e.target.value); }} placeholder="--" className="w-full px-1.5 py-0.5 text-xs border border-transparent hover:border-platinum focus:border-royal-purple rounded focus:outline-none bg-transparent transition-colors duration-150" />
                                 </td>
                               )}
