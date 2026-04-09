@@ -510,20 +510,20 @@ export default function ProjectDetailPage() {
           {view === "list" ? (
             <div className="min-w-0">
               {/* Column headers */}
-              <div className="sticky top-0 z-10 bg-white border-b-2 border-platinum">
-                <table className="w-full">
+              <div className="sticky top-0 z-10 bg-white border-b border-platinum">
+                <table className="w-full border-collapse">
                   <thead>
                     <tr className="text-left">
-                      <th className="w-10 py-2 px-2" />
-                      <th className="py-2 px-2 text-[11px] uppercase tracking-wider text-brand-gray font-medium">Task name</th>
-                      {isColumnVisible("created") && <th className="py-2 px-2 w-28 text-[11px] uppercase tracking-wider text-brand-gray font-medium">Created</th>}
-                      {isColumnVisible("dueDate") && <th className="py-2 px-2 w-32 text-[11px] uppercase tracking-wider text-brand-gray font-medium">Due date</th>}
-                      {isColumnVisible("priority") && <th className="py-2 px-2 w-24 text-[11px] uppercase tracking-wider text-brand-gray font-medium">Priority</th>}
-                      {isColumnVisible("status") && <th className="py-2 px-2 w-32 text-[11px] uppercase tracking-wider text-brand-gray font-medium">Status</th>}
-                      {isColumnVisible("collaborators") && <th className="py-2 px-2 w-36 text-[11px] uppercase tracking-wider text-brand-gray font-medium">Assignee</th>}
-                      {isColumnVisible("notes") && <th className="py-2 px-2 text-[11px] uppercase tracking-wider text-brand-gray font-medium">Notes</th>}
+                      <th className="w-10 py-2 px-2 border-r border-platinum/40" />
+                      <th className="py-2 px-3 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Task name</th>
+                      {isColumnVisible("created") && <th className="py-2 px-3 w-28 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Created</th>}
+                      {isColumnVisible("dueDate") && <th className="py-2 px-3 w-32 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Due date</th>}
+                      {isColumnVisible("priority") && <th className="py-2 px-3 w-24 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Priority</th>}
+                      {isColumnVisible("status") && <th className="py-2 px-3 w-32 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Status</th>}
+                      {isColumnVisible("collaborators") && <th className="py-2 px-3 w-36 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Assignee</th>}
+                      {isColumnVisible("notes") && <th className="py-2 px-3 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Notes</th>}
                       {(project.customFields || []).map((cf) => (
-                        <th key={cf.id} className="py-2 px-2 w-36 text-[11px] uppercase tracking-wider text-brand-gray font-medium">
+                        <th key={cf.id} className="py-2 px-3 w-36 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">
                           <div className="group/cfh flex items-center gap-1">
                             <span>{cf.name}</span>
                             <button
@@ -624,7 +624,7 @@ export default function ProjectDetailPage() {
                   )}
                 </div>
               ) : (
-                <table className="w-full">
+                <table className="w-full border-collapse">
                   <tbody>
                     {(hasSections ? groupedTasks : [{ section: null, tasks: project.tasks }]).map((group, groupIdx) => {
                       const sectionKey = group.section || "__all__";
@@ -678,9 +678,9 @@ export default function ProjectDetailPage() {
                           {!isCollapsed && filteredTasks.map((task) => (
                             <tr
                               key={task.id}
-                              className={`group/task border-b border-platinum/30 hover:bg-white-smoke/50 transition-colors duration-150 ${activeTask?.id === task.id ? "bg-lavender/20 border-l-[3px] border-l-royal-purple" : "border-l-[3px] border-l-transparent"} ${dragTaskId === task.id ? "opacity-40" : ""}`}
+                              className={`group/task border-b border-platinum/40 hover:bg-gray-50 transition-colors duration-150 ${activeTask?.id === task.id ? "bg-lavender/10 border-l-[3px] border-l-royal-purple" : "border-l-[3px] border-l-transparent"} ${dragTaskId === task.id ? "opacity-40" : ""}`}
                             >
-                              <td className="py-2.5 px-2 w-10">
+                              <td className="py-2.5 px-2 w-10 border-r border-platinum/40">
                                 <div className="flex items-center gap-1">
                                   {hasSections && (
                                     <div draggable onDragStart={(e) => { setDragTaskId(task.id); e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { setDragTaskId(null); setDragOverSection(null); }} className="cursor-grab active:cursor-grabbing opacity-0 group-hover/task:opacity-100 transition-opacity duration-150" title="Drag to section">
@@ -691,18 +691,23 @@ export default function ProjectDetailPage() {
                                 </div>
                               </td>
                               <td
-                                className={`py-2.5 px-2 text-sm cursor-pointer transition-colors duration-150 ${task.completed ? "line-through text-brand-gray/50" : "text-brand-black font-medium hover:text-royal-purple"}`}
+                                className={`py-2.5 px-3 text-sm cursor-pointer transition-colors duration-150 border-r border-platinum/40 ${task.completed ? "line-through text-brand-gray/50" : "text-brand-black font-medium hover:text-royal-purple"}`}
                                 onClick={() => setSelectedTask(activeTask?.id === task.id ? null : task)}
                               >
-                                {task.title}
+                                <div className="flex items-center gap-2">
+                                  <span className="truncate">{task.title}</span>
+                                  {task.subtasks?.length > 0 && (
+                                    <span className="text-[11px] text-brand-gray/50 flex-shrink-0">{task.subtasks.length} <span className="inline-block w-3 h-3 border border-brand-gray/30 rounded-sm align-middle" /></span>
+                                  )}
+                                </div>
                               </td>
                               {isColumnVisible("created") && (
-                                <td className="py-2.5 px-2 text-xs text-brand-gray/60 whitespace-nowrap w-28">
+                                <td className="py-2.5 px-3 text-xs text-brand-gray/60 whitespace-nowrap w-28 border-r border-platinum/40">
                                   {new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                                 </td>
                               )}
                               {isColumnVisible("dueDate") && (
-                                <td className="py-2.5 px-2 w-32">
+                                <td className="py-2.5 px-3 w-32 border-r border-platinum/40">
                                   <input
                                     type="date" defaultValue={task.dueDate || ""} key={task.id + "-due-" + task.dueDate}
                                     onChange={(e) => updateTaskField(task.id, "dueDate", e.target.value || null)}
@@ -711,7 +716,7 @@ export default function ProjectDetailPage() {
                                 </td>
                               )}
                               {isColumnVisible("priority") && (
-                                <td className="py-2.5 px-2 w-24">
+                                <td className="py-2.5 px-3 w-24 border-r border-platinum/40">
                                   <select value={task.priority} onChange={(e) => updateTaskField(task.id, "priority", e.target.value)} className={`px-2 py-0.5 text-xs font-medium rounded-full border-0 cursor-pointer transition-colors duration-150 ${task.priority === "high" ? "bg-red-100 text-red-700" : task.priority === "low" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
                                     <option value="high">High</option>
                                     <option value="medium">Medium</option>
@@ -720,14 +725,14 @@ export default function ProjectDetailPage() {
                                 </td>
                               )}
                               {isColumnVisible("status") && (
-                                <td className="py-2.5 px-2 w-32">
+                                <td className="py-2.5 px-3 w-32 border-r border-platinum/40">
                                   <select value={task.status} onChange={(e) => updateTaskField(task.id, "status", e.target.value)} className={`px-2 py-0.5 text-xs font-medium rounded-full border-0 cursor-pointer transition-colors duration-150 ${statusColors[task.status] || "bg-gray-100 text-gray-600"}`}>
                                     {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                                   </select>
                                 </td>
                               )}
                               {isColumnVisible("collaborators") && (
-                                <td className="py-2.5 px-2 w-36">
+                                <td className="py-2.5 px-3 w-36 border-r border-platinum/40">
                                   <div className="flex items-center gap-1">
                                     {task.collaborators.length > 0 && <Initials name={task.collaborators[0].person.name} size="xs" />}
                                     <select
@@ -742,7 +747,7 @@ export default function ProjectDetailPage() {
                                 </td>
                               )}
                               {isColumnVisible("notes") && (
-                                <td className="py-2.5 px-2">
+                                <td className="py-2.5 px-3 border-r border-platinum/40">
                                   <input defaultValue={task.notes} key={task.id + task.notes} onBlur={(e) => { if (e.target.value !== task.notes) updateTaskField(task.id, "notes", e.target.value); }} placeholder="--" className="w-full px-1.5 py-0.5 text-xs border border-transparent hover:border-platinum focus:border-royal-purple rounded focus:outline-none bg-transparent transition-colors duration-150" />
                                 </td>
                               )}
@@ -751,7 +756,7 @@ export default function ProjectDetailPage() {
                                 const opts: string[] = (() => { try { return JSON.parse(cf.options); } catch { return []; } })();
                                 if (cf.type === "text") {
                                   return (
-                                    <td key={cf.id} className="py-2.5 px-2 group/cfcell">
+                                    <td key={cf.id} className="py-2.5 px-3 border-r border-platinum/40 group/cfcell">
                                       {val && isUrl(val) ? (
                                         <div className="flex items-center gap-1">
                                           <a href={toHref(val)} target="_blank" rel="noopener noreferrer" className="text-xs text-royal-purple underline truncate max-w-[100px] hover:text-midnight-blue">{val.trim().replace(/^https?:\/\/(www\.)?/, "").replace(/^www\./, "").split("/")[0]}</a>
@@ -765,7 +770,7 @@ export default function ProjectDetailPage() {
                                 }
                                 if (cf.type === "single-select") {
                                   return (
-                                    <td key={cf.id} className="py-2.5 px-2">
+                                    <td key={cf.id} className="py-2.5 px-3 border-r border-platinum/40">
                                       <select value={val} onChange={(e) => updateTaskCustomFieldValue(task.id, cf.id, e.target.value)} className="text-xs text-brand-gray border border-platinum hover:border-royal-purple rounded px-1.5 py-0.5 bg-white focus:outline-none cursor-pointer max-w-[130px] transition-colors duration-150">
                                         <option value="">--</option>
                                         {opts.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -776,7 +781,7 @@ export default function ProjectDetailPage() {
                                 const selected: string[] = (() => { try { return val ? JSON.parse(val) : []; } catch { return []; } })();
                                 const remaining = opts.filter((o) => !selected.includes(o));
                                 return (
-                                  <td key={cf.id} className="py-2.5 px-2">
+                                  <td key={cf.id} className="py-2.5 px-3 border-r border-platinum/40">
                                     <div className="flex flex-wrap gap-0.5 items-center">
                                       {selected.map((s) => (
                                         <span key={s} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-lavender rounded-full text-[11px]">
