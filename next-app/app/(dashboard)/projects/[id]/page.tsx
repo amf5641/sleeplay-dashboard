@@ -5,6 +5,7 @@ import useSWR from "swr";
 import Modal from "@/components/modal";
 import ConfirmDialog from "@/components/confirm-dialog";
 import { useRole } from "@/hooks/use-role";
+import TimelineView from "@/components/timeline-view";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -122,7 +123,7 @@ export default function ProjectDetailPage() {
   const { data: people = [] } = useSWR<Person[]>("/api/people", fetcher);
   const { data: allUsers = [] } = useSWR<AppUser[]>("/api/users", fetcher);
 
-  const [view, setView] = useState<"list" | "board" | "calendar">("list");
+  const [view, setView] = useState<"list" | "board" | "calendar" | "timeline">("list");
   const [taskFilter, setTaskFilter] = useState<"all" | "incomplete" | "complete">("incomplete");
   const [membersModal, setMembersModal] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
@@ -569,9 +570,15 @@ export default function ProjectDetailPage() {
               >
                 Calendar
               </button>
+              <button
+                onClick={() => setView("timeline")}
+                className={`px-1 pb-2.5 text-sm font-medium border-b-2 transition-colors duration-150 ml-5 ${view === "timeline" ? "border-royal-purple text-brand-black" : "border-transparent text-brand-gray hover:text-brand-black"}`}
+              >
+                Timeline
+              </button>
             </div>
             {/* Filter pills */}
-            {(view === "list" || view === "board") && (
+            {(view === "list" || view === "board" || view === "timeline") && (
               <div className="flex gap-1 ml-4">
                 {(["incomplete", "all", "complete"] as const).map((f) => (
                   <button
@@ -1003,7 +1010,7 @@ export default function ProjectDetailPage() {
                 );
               })}
             </div>
-          ) : (
+          ) : view === "calendar" ? (
             /* ═══ CALENDAR VIEW ═══ */
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
@@ -1031,6 +1038,19 @@ export default function ProjectDetailPage() {
                 ))}
               </div>
             </div>
+          ) : (
+            /* ═══ TIMELINE VIEW ═══ */
+            <TimelineView
+              tasks={project.tasks.filter((t) => {
+                if (taskFilter === "all") return true;
+                if (taskFilter === "incomplete") return !t.completed;
+                return t.completed;
+              })}
+              onUpdateDueDate={(taskId, newDate) => updateTaskField(taskId, "dueDate", newDate)}
+              onSelectTask={(task) => setSelectedTask(activeTask?.id === task.id ? null : task as Task)}
+              selectedTaskId={activeTask?.id || null}
+              sections={groupedTasks.filter((g) => g.section !== null).map((g) => g.section as string)}
+            />
           )}
         </div>
 
