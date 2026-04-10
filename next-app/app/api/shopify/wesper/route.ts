@@ -6,6 +6,7 @@ const WESPER_API_KEY_BASE64 = process.env.WESPER_API_KEY_BASE64!;
 const WESPER_API_URL = process.env.WESPER_API_URL ?? "https://api.wesper.dev/v1/external-orders/sleeplay";
 const WESPER_GROUP_ID = process.env.WESPER_GROUP_ID!;           // supplied by Wesper onboarding
 const WESPER_SKU = process.env.WESPER_SKU!;                     // supplied by Wesper onboarding
+const WESPER_USER = process.env.WESPER_USER ?? "";              // Wesper user ID for pilot flow (interpreting_provider.user)
 const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET!;
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN!; // e.g. sleeplay.myshopify.com
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!; // Admin API access token
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
 
   const wesperPayload = {
     interpreting_provider: {
-      group_id: WESPER_GROUP_ID,
+      ...(WESPER_USER ? { user: WESPER_USER } : {}),
       name: "Sleeplay",
       email: "orders@sleeplay.com",
     },
@@ -127,6 +128,9 @@ export async function POST(request: NextRequest) {
     order: {
       order_id: String(order.id),
       sku: WESPER_SKU,
+      group_id: WESPER_GROUP_ID,
+      order_placed_by_name: "Sleeplay",
+      order_placed_by_email: "orders@sleeplay.com",
       date: order.created_at,
     },
     patient: {
