@@ -24,10 +24,12 @@ function verifyShopifyHmac(rawBody: string, hmacHeader: string | null): boolean 
   return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(hmacHeader));
 }
 
-// ── Fetch date of birth from Shopify order metafields ────────────────────────
-async function fetchOrderDateOfBirth(orderId: number): Promise<string> {
-  const [namespace, key] = BIRTHDAY_METAFIELD_KEY.split(".");
-  const url = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-01/orders/${orderId}/metafields.json?namespace=${namespace}&key=${key}`;
+// ── Fetch DOB + phone from Shopify order metafields (checkoutblocks namespace) ─
+async function fetchOrderCheckoutBlocksMetafields(
+  orderId: number
+): Promise<{ birthDate: string; phone: string }> {
+  const [namespace] = BIRTHDAY_METAFIELD_KEY.split(".");
+  const url = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-01/orders/${orderId}/metafields.json?namespace=${namespace}`;
 
   try {
     const res = await fetch(url, {
@@ -36,12 +38,14 @@ async function fetchOrderDateOfBirth(orderId: number): Promise<string> {
         "Content-Type": "application/json",
       },
     });
-    if (!res.ok) return "";
-    const data = await res.json() as { metafields?: { value?: string }[] };
-    // Shopify date metafields are already YYYY-MM-DD — matches Wesper's expected format
-    return data.metafields?.[0]?.value ?? "";
+    if (!res.ok) return { birthDate: "", phone: "" };
+    const data = await res.json() as { metafields?: { key?: string; value?: string }[] };
+    const fields = data.metafields ?? [];
+    const birthDate = fields.find((f) => f.key === "date_of_birth")?.value ?? "";
+    const phone     = fields.find((f) => f.key === "phone")?.value ?? "";
+    return { birthDate, phone };
   } catch {
-    return "";
+    return { birthDate: "", phone: "" };
   }
 }
 
@@ -100,13 +104,14 @@ export async function POST(request: NextRequest) {
     return Response.json({ skipped: true, reason: "Not a Wesper order" });
   }
 
-  // 5. Fetch date of birth from order metafields
+  // 5. Fetch DOB + phone from order metafields (CheckoutBlocks)
   const customer = order.customer;
-  const birthDate = await fetchOrderDateOfBirth(order.id);
+  const { birthDate, phone: metafieldPhone } = await fetchOrderCheckoutBlocksMetafields(order.id);
 
   // 6. Map Shopify → Wesper payload
   const addr = order.shipping_address ?? {};
-  const patientPhone = addr.phone ?? order.phone ?? customer?.phone ?? "";
+  // Prefer CheckoutBlocks metafield phone (most reliable), then fall back to standard fields
+  const patientPhone = metafieldPhone || addr.phone || order.phone || customer?.phone || "";
   const patientEmail = order.email ?? customer?.email ?? "";
 
   const wesperPayload = {
