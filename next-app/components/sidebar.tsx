@@ -38,6 +38,14 @@ export default function Sidebar() {
         <Image src="/sleeplay-logo.svg" alt="Sleeplay" width={120} height={28} priority />
       </Link>
       <nav className="flex-1 py-3 overflow-y-auto">
+        <button
+          onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+          className="flex items-center gap-3 px-5 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors w-full text-left mb-1"
+        >
+          <span>🔍</span>
+          <span className="flex-1">Search</span>
+          <kbd className="text-[10px] text-white/30 bg-white/10 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
+        </button>
         {navItems.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const isNotifications = item.href === "/notifications";

@@ -94,11 +94,15 @@ interface AppUser { id: string; email: string }
 interface ProjectMember { id: string; user: AppUser }
 interface CustomField { id: string; name: string; type: string; options: string; position: number }
 interface TaskCustomFieldValue { id: string; taskId: string; customFieldId: string; value: string }
+interface TaskAttachment { id: string; name: string; url: string; createdAt: string }
+interface TaskComment { id: string; body: string; createdAt: string; author: { id: string; email: string } }
 interface Subtask {
   id: string; title: string; description: string; dueDate: string | null; priority: string; status: string; notes: string; completed: boolean; createdAt: string;
   repeatFreq: string | null; repeatDay: number | null;
   collaborators: { person: Person }[];
   customFieldValues: TaskCustomFieldValue[];
+  attachments: TaskAttachment[];
+  _count?: { comments: number };
 }
 interface Task extends Subtask {
   subtasks: Subtask[];
@@ -114,7 +118,7 @@ export default function ProjectDetailPage() {
   const { data: people = [] } = useSWR<Person[]>("/api/people", fetcher);
   const { data: allUsers = [] } = useSWR<AppUser[]>("/api/users", fetcher);
 
-  const [view, setView] = useState<"list" | "calendar">("list");
+  const [view, setView] = useState<"list" | "board" | "calendar">("list");
   const [taskFilter, setTaskFilter] = useState<"all" | "incomplete" | "complete">("incomplete");
   const [membersModal, setMembersModal] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
@@ -144,6 +148,15 @@ export default function ProjectDetailPage() {
   const [inlineAddTitle, setInlineAddTitle] = useState("");
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const headerMenuRef = useRef<HTMLDivElement>(null);
+  const [comments, setComments] = useState<TaskComment[]>([]);
+  const [commentBody, setCommentBody] = useState("");
+  const [attachName, setAttachName] = useState("");
+  const [attachUrl, setAttachUrl] = useState("");
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState("");
+  const commentInputRef = useRef<HTMLTextAreaElement>(null);
+  const [boardDragId, setBoardDragId] = useState<string | null>(null);
+  const [boardDragOver, setBoardDragOver] = useState<string | null>(null);
 
   useEffect(() => {
     if (project && !sectionsInitialized) {
@@ -183,6 +196,57 @@ export default function ProjectDetailPage() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [headerMenuOpen]);
+
+  // Fetch comments when task is selected
+  useEffect(() => {
+    if (!selectedTask) { setComments([]); return; }
+    fetch(`/api/tasks/${selectedTask.id}/comments`).then((r) => r.json()).then(setComments).catch(() => setComments([]));
+  }, [selectedTask?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const postComment = async () => {
+    if (!selectedTask || !commentBody.trim()) return;
+    const res = await fetch(`/api/tasks/${selectedTask.id}/comments`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: commentBody }),
+    });
+    if (res.ok) {
+      const comment = await res.json();
+      setComments((prev) => [...prev, comment]);
+      setCommentBody("");
+    }
+  };
+
+  const deleteComment = async (commentId: string) => {
+    await fetch(`/api/comments/${commentId}`, { method: "DELETE" });
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
+  };
+
+  const addAttachment = async (taskId: string) => {
+    if (!attachName.trim() || !attachUrl.trim()) return;
+    await fetch(`/api/tasks/${taskId}/attachments`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: attachName.trim(), url: attachUrl.trim() }),
+    });
+    setAttachName(""); setAttachUrl("");
+    mutate();
+  };
+
+  const deleteAttachment = async (attachId: string) => {
+    await fetch(`/api/attachments/${attachId}`, { method: "DELETE" });
+    mutate();
+  };
+
+  const insertMention = (person: Person) => {
+    const mention = `@[${person.name}](${person.id})`;
+    setCommentBody((prev) => prev.replace(/@\w*$/, mention + " "));
+    setShowMentions(false);
+    setMentionFilter("");
+    commentInputRef.current?.focus();
+  };
+
+  const renderCommentBody = (body: string) => {
+    return body.replace(/@\[([^\]]+)\]\([^)]+\)/g, '<strong class="text-royal-purple">@$1</strong>');
+  };
 
   const openAddTask = () => {
     setTaskForm({ title: "", dueDate: "", priority: "medium", status: "On Track", notes: "", description: "", collaborators: [], section: "" });
@@ -474,6 +538,12 @@ export default function ProjectDetailPage() {
                 List
               </button>
               <button
+                onClick={() => setView("board")}
+                className={`px-1 pb-2.5 text-sm font-medium border-b-2 transition-colors duration-150 ml-5 ${view === "board" ? "border-royal-purple text-brand-black" : "border-transparent text-brand-gray hover:text-brand-black"}`}
+              >
+                Board
+              </button>
+              <button
                 onClick={() => setView("calendar")}
                 className={`px-1 pb-2.5 text-sm font-medium border-b-2 transition-colors duration-150 ml-5 ${view === "calendar" ? "border-royal-purple text-brand-black" : "border-transparent text-brand-gray hover:text-brand-black"}`}
               >
@@ -481,7 +551,7 @@ export default function ProjectDetailPage() {
               </button>
             </div>
             {/* Filter pills */}
-            {view === "list" && (
+            {(view === "list" || view === "board") && (
               <div className="flex gap-1 ml-4">
                 {(["incomplete", "all", "complete"] as const).map((f) => (
                   <button
@@ -693,7 +763,19 @@ export default function ProjectDetailPage() {
                                 <div className="flex items-center gap-2">
                                   <span className="truncate">{task.title}</span>
                                   {task.subtasks?.length > 0 && (
-                                    <span className="text-[11px] text-brand-gray/50 flex-shrink-0">{task.subtasks.length} <span className="inline-block w-3 h-3 border border-brand-gray/30 rounded-sm align-middle" /></span>
+                                    <span className="text-[11px] text-brand-gray/40 flex-shrink-0" title={`${task.subtasks.length} subtasks`}>{task.subtasks.length}
+                                      <svg className="w-3 h-3 inline-block ml-0.5 align-middle" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
+                                    </span>
+                                  )}
+                                  {(task._count?.comments || 0) > 0 && (
+                                    <span className="text-[11px] text-brand-gray/40 flex-shrink-0" title={`${task._count!.comments} comments`}>{task._count!.comments}
+                                      <svg className="w-3 h-3 inline-block ml-0.5 align-middle" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                    </span>
+                                  )}
+                                  {(task.attachments?.length || 0) > 0 && (
+                                    <span className="text-[11px] text-brand-gray/40 flex-shrink-0" title={`${task.attachments.length} attachments`}>{task.attachments.length}
+                                      <svg className="w-3 h-3 inline-block ml-0.5 align-middle" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                    </span>
                                   )}
                                 </div>
                               </td>
@@ -832,20 +914,84 @@ export default function ProjectDetailPage() {
                 </table>
               )}
             </div>
+          ) : view === "board" ? (
+            /* ═══ BOARD VIEW ═══ */
+            <div className="flex gap-4 p-6 overflow-x-auto h-full items-start">
+              {STATUS_OPTIONS.map((status) => {
+                const statusTasks = project.tasks.filter((t) => {
+                  const matchesStatus = t.status === status;
+                  const matchesFilter = taskFilter === "all" ? true : taskFilter === "incomplete" ? !t.completed : t.completed;
+                  return matchesStatus && matchesFilter;
+                });
+                return (
+                  <div key={status} className="w-72 flex-shrink-0 flex flex-col max-h-full">
+                    <div className="flex items-center gap-2 px-3 py-2 mb-2">
+                      <span className={`w-2 h-2 rounded-full ${statusDot[status] || "bg-gray-400"}`} />
+                      <span className="text-sm font-semibold text-brand-black">{status}</span>
+                      <span className="text-xs text-brand-gray/50">{statusTasks.length}</span>
+                    </div>
+                    <div
+                      className={`flex-1 overflow-y-auto space-y-2 px-1 py-1 rounded-lg min-h-[80px] transition-colors ${boardDragOver === status ? "bg-lavender/20 ring-2 ring-royal-purple/20" : ""}`}
+                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setBoardDragOver(status); }}
+                      onDragLeave={() => setBoardDragOver(null)}
+                      onDrop={(e) => { e.preventDefault(); if (boardDragId) { updateTaskField(boardDragId, "status", status); setBoardDragId(null); } setBoardDragOver(null); }}
+                    >
+                      {statusTasks.map((task) => (
+                        <div
+                          key={task.id}
+                          draggable
+                          onDragStart={() => setBoardDragId(task.id)}
+                          onDragEnd={() => { setBoardDragId(null); setBoardDragOver(null); }}
+                          onClick={() => setSelectedTask(activeTask?.id === task.id ? null : task)}
+                          className={`bg-white rounded-lg border border-platinum p-3 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${boardDragId === task.id ? "opacity-40" : ""} ${activeTask?.id === task.id ? "ring-2 ring-royal-purple" : ""}`}
+                        >
+                          <p className={`text-sm font-medium mb-2 ${task.completed ? "line-through text-brand-gray/50" : "text-brand-black"}`}>{task.title}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {task.dueDate && (
+                              <span className={`text-[11px] px-1.5 py-0.5 rounded ${isOverdue(task.dueDate) && !task.completed ? "bg-red-100 text-red-600" : "bg-gray-100 text-brand-gray"}`}>
+                                {new Date(task.dueDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                              </span>
+                            )}
+                            <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${task.priority === "high" ? "bg-red-100 text-red-700" : task.priority === "low" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                              {task.priority}
+                            </span>
+                            {task.collaborators.length > 0 && (
+                              <div className="flex -space-x-1 ml-auto">
+                                {task.collaborators.slice(0, 2).map((c) => (
+                                  <Initials key={c.person.id} name={c.person.name} size="xs" />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {task.subtasks?.length > 0 && (
+                            <div className="mt-2 text-[11px] text-brand-gray/60">
+                              {task.subtasks.filter((s) => s.completed).length}/{task.subtasks.length} subtasks
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {statusTasks.length === 0 && (
+                        <div className="text-xs text-brand-gray/30 text-center py-6">No tasks</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           ) : (
             /* ═══ CALENDAR VIEW ═══ */
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <button onClick={() => setCalMonth(new Date(year, month - 1, 1))} className="p-1.5 rounded-lg hover:bg-white-smoke text-brand-gray transition-colors duration-150">&larr;</button>
+                <button onClick={() => setCalMonth(new Date(year, month - 1, 1))} className="p-1.5 rounded-lg hover:bg-gray-50 text-brand-gray transition-colors duration-150">&larr;</button>
                 <h2 className="font-semibold font-heading">{monthName}</h2>
-                <button onClick={() => setCalMonth(new Date(year, month + 1, 1))} className="p-1.5 rounded-lg hover:bg-white-smoke text-brand-gray transition-colors duration-150">&rarr;</button>
+                <button onClick={() => setCalMonth(new Date(year, month + 1, 1))} className="p-1.5 rounded-lg hover:bg-gray-50 text-brand-gray transition-colors duration-150">&rarr;</button>
               </div>
               <div className="grid grid-cols-7 gap-px bg-platinum rounded-lg overflow-hidden">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
                   <div key={d} className="bg-white p-2 text-[11px] uppercase tracking-wider text-brand-gray text-center font-medium">{d}</div>
                 ))}
                 {calDays.map((day, i) => (
-                  <div key={i} className={`bg-white p-2 min-h-[80px] ${!day ? "bg-white-smoke/50" : ""}`}>
+                  <div key={i} className={`bg-white p-2 min-h-[80px] ${!day ? "bg-gray-50/50" : ""}`}>
                     {day && (
                       <>
                         <div className="text-xs text-brand-gray mb-1">{day}</div>
@@ -1064,6 +1210,85 @@ export default function ProjectDetailPage() {
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                   Add subtask
                 </button>
+              </div>
+
+              {/* Attachments */}
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-brand-gray mb-3">
+                  Attachments {(activeTask.attachments?.length || 0) > 0 && <span className="text-brand-gray/60 ml-1">{activeTask.attachments.length}</span>}
+                </h3>
+                {activeTask.attachments?.length > 0 && (
+                  <div className="space-y-1.5 mb-3">
+                    {activeTask.attachments.map((att) => (
+                      <div key={att.id} className="group/att flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-gray-50 transition-colors">
+                        <svg className="w-4 h-4 text-brand-gray/50 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                        <a href={att.url.startsWith("http") ? att.url : `https://${att.url}`} target="_blank" rel="noopener noreferrer" className="text-sm text-royal-purple hover:text-midnight-blue truncate flex-1">{att.name}</a>
+                        <button onClick={() => deleteAttachment(att.id)} className="opacity-0 group-hover/att:opacity-100 p-0.5 rounded hover:bg-red-50 text-brand-gray hover:text-red-500 transition-all flex-shrink-0">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <input value={attachName} onChange={(e) => setAttachName(e.target.value)} placeholder="Name" className="flex-1 text-xs px-2 py-1.5 border border-platinum rounded-lg focus:outline-none focus:border-royal-purple bg-white" />
+                  <input value={attachUrl} onChange={(e) => setAttachUrl(e.target.value)} placeholder="URL" className="flex-1 text-xs px-2 py-1.5 border border-platinum rounded-lg focus:outline-none focus:border-royal-purple bg-white" onKeyDown={(e) => { if (e.key === "Enter") addAttachment(activeTask.id); }} />
+                  <button onClick={() => addAttachment(activeTask.id)} className="text-xs text-royal-purple hover:text-midnight-blue font-medium px-2 transition-colors">Add</button>
+                </div>
+              </div>
+
+              {/* Comments */}
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-brand-gray mb-3">
+                  Comments {comments.length > 0 && <span className="text-brand-gray/60 ml-1">{comments.length}</span>}
+                </h3>
+                {comments.length > 0 && (
+                  <div className="space-y-3 mb-4">
+                    {comments.map((c) => (
+                      <div key={c.id} className="group/comment">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Initials name={c.author.email} size="xs" />
+                          <span className="text-xs font-medium text-brand-black">{c.author.email.split("@")[0]}</span>
+                          <span className="text-[11px] text-brand-gray/50">{new Date(c.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                          <button onClick={() => deleteComment(c.id)} className="opacity-0 group-hover/comment:opacity-100 p-0.5 rounded hover:bg-red-50 text-brand-gray hover:text-red-500 ml-auto transition-all">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                        <div className="text-sm text-brand-black/80 pl-7" dangerouslySetInnerHTML={{ __html: renderCommentBody(c.body) }} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="relative">
+                  <textarea
+                    ref={commentInputRef}
+                    value={commentBody}
+                    onChange={(e) => {
+                      setCommentBody(e.target.value);
+                      const atMatch = e.target.value.match(/@(\w*)$/);
+                      if (atMatch) { setShowMentions(true); setMentionFilter(atMatch[1]); } else { setShowMentions(false); }
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); postComment(); } }}
+                    placeholder="Write a comment... (@mention people)"
+                    rows={2}
+                    className="w-full text-sm px-3 py-2 border border-platinum rounded-lg focus:outline-none focus:border-royal-purple resize-none bg-white"
+                  />
+                  {showMentions && (
+                    <div className="absolute bottom-full mb-1 left-0 bg-white border border-platinum rounded-lg shadow-lg w-56 py-1 max-h-40 overflow-y-auto z-10">
+                      {people.filter((p) => !mentionFilter || p.name.toLowerCase().includes(mentionFilter.toLowerCase())).map((p) => (
+                        <button key={p.id} onClick={() => insertMention(p)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-lavender/30 flex items-center gap-2 transition-colors">
+                          <Initials name={p.name} size="xs" />
+                          {p.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {commentBody.trim() && (
+                    <div className="flex justify-end mt-1.5">
+                      <button onClick={postComment} className="px-3 py-1 text-xs bg-royal-purple text-white rounded-lg hover:bg-midnight-blue transition-colors">Post</button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Footer */}

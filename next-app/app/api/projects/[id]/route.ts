@@ -28,6 +28,8 @@ export async function GET(
             orderBy: [{ completed: "asc" }, { createdAt: "asc" }],
           },
           customFieldValues: true,
+          attachments: { orderBy: { createdAt: "desc" } },
+          _count: { select: { comments: true } },
         },
         orderBy: [{ completed: "asc" }, { title: "asc" }],
       },

@@ -16,6 +16,7 @@ model User {
   createdAt     DateTime        @default(now())
   projects      ProjectMember[]
   notifications Notification[]
+  comments      TaskComment[]
 }
 
 model Notification {
@@ -119,6 +120,28 @@ model Task {
   createdAt     DateTime           @default(now())
   collaborators    TaskCollaborator[]
   customFieldValues TaskCustomFieldValue[]
+  attachments      TaskAttachment[]
+  comments         TaskComment[]
+}
+
+model TaskAttachment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  name      String
+  url       String
+  createdAt DateTime @default(now())
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model TaskCollaborator {
