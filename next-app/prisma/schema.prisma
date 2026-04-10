@@ -9,14 +9,15 @@ datasource db {
 }
 
 model User {
-  id            String          @id @default(cuid())
-  email         String          @unique
-  passwordHash  String
-  role          String          @default("member")
-  createdAt     DateTime        @default(now())
-  projects      ProjectMember[]
-  notifications Notification[]
-  comments      TaskComment[]
+  id             String          @id @default(cuid())
+  email          String          @unique
+  passwordHash   String
+  role           String          @default("member")
+  createdAt      DateTime        @default(now())
+  projects       ProjectMember[]
+  notifications  Notification[]
+  comments       TaskComment[]
+  activityEvents ActivityEvent[] @relation("ActivityEvents")
 }
 
 model Notification {
@@ -85,9 +86,10 @@ model Project {
   columnConfig String          @default("{}") // JSON: { hiddenColumns: string[] }
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
-  tasks        Task[]
-  members      ProjectMember[]
-  customFields CustomField[]
+  tasks          Task[]
+  members        ProjectMember[]
+  customFields   CustomField[]
+  activityEvents ActivityEvent[]
 }
 
 model ProjectMember {
@@ -122,6 +124,8 @@ model Task {
   customFieldValues TaskCustomFieldValue[]
   attachments      TaskAttachment[]
   comments         TaskComment[]
+  dependsOn        TaskDependency[] @relation("DependsOn")
+  blocks           TaskDependency[] @relation("Blocks")
 }
 
 model TaskAttachment {
@@ -209,4 +213,56 @@ model ContentDocument {
   category   ContentCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   content    String           @default("")
   updatedAt  DateTime         @updatedAt
+}
+
+model ActivityEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("ActivityEvents", fields: [userId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId    String?
+  action    String
+  detail    String   @default("")
+  metadata  String   @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([createdAt])
+}
+
+model TaskDependency {
+  id              String @id @default(cuid())
+  taskId          String
+  blockedByTaskId String
+  task            Task   @relation("DependsOn", fields: [taskId], references: [id], onDelete: Cascade)
+  blockedByTask   Task   @relation("Blocks", fields: [blockedByTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, blockedByTaskId])
+}
+
+model ProjectTemplate {
+  id          String                   @id @default(cuid())
+  name        String
+  description String                   @default("")
+  sections    ProjectTemplateSection[]
+  createdAt   DateTime                 @default(now())
+}
+
+model ProjectTemplateSection {
+  id         String                @id @default(cuid())
+  templateId String
+  template   ProjectTemplate       @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  name       String
+  position   Int                   @default(0)
+  tasks      ProjectTemplateTask[]
+}
+
+model ProjectTemplateTask {
+  id        String                 @id @default(cuid())
+  sectionId String
+  section   ProjectTemplateSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  title     String
+  priority  String                 @default("medium")
+  position  Int                    @default(0)
 }

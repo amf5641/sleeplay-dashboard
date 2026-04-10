@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logActivity } from "@/lib/activity";
+import { notifyCollaborators } from "@/lib/notify";
 
 function computeNextDueDate(currentDue: string | null, freq: string, repeatDay: number | null): string {
   const base = currentDue ? new Date(currentDue + "T00:00:00") : new Date();
@@ -127,6 +129,19 @@ export async function PUT(
     data,
     include: { collaborators: { include: { person: true } }, subtasks: true },
   });
+
+  // Activity logging and notifications
+  const userEmail = (session.user as { email?: string }).email;
+  const dbUser = userEmail ? await prisma.user.findUnique({ where: { email: userEmail }, select: { id: true } }) : null;
+
+  if (dbUser) {
+    if (body.completed === true) {
+      logActivity(dbUser.id, task.projectId, id, "completed_task", `completed "${task.title}"`, { taskTitle: task.title });
+      notifyCollaborators(id, userEmail || null, "task_completed", "Task completed", `"${task.title}" was marked complete`, `/projects/${task.projectId}?task=${id}`);
+    } else if (body.status !== undefined) {
+      logActivity(dbUser.id, task.projectId, id, "changed_status", `changed status of "${task.title}" to ${body.status}`, { taskTitle: task.title, newStatus: body.status });
+    }
+  }
 
   // Auto-create next occurrence when a repeating task is completed
   if (body.completed === true && task.repeatFreq) {

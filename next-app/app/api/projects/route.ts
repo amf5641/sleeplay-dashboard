@@ -63,5 +63,33 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Create tasks from template if provided
+  if (body.templateId) {
+    const template = await prisma.projectTemplate.findUnique({
+      where: { id: body.templateId },
+      include: { sections: { orderBy: { position: "asc" }, include: { tasks: { orderBy: { position: "asc" } } } } },
+    });
+    if (template) {
+      const sectionOrder: string[] = [];
+      for (const section of template.sections) {
+        sectionOrder.push(section.name);
+        for (const task of section.tasks) {
+          await prisma.task.create({
+            data: {
+              projectId: project.id,
+              title: task.title,
+              priority: task.priority,
+              notes: `[${section.name}]`,
+            },
+          });
+        }
+      }
+      await prisma.project.update({
+        where: { id: project.id },
+        data: { sectionOrder: JSON.stringify(sectionOrder) },
+      });
+    }
+  }
+
   return Response.json(project, { status: 201 });
 }

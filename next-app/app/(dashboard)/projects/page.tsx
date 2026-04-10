@@ -10,6 +10,7 @@ import { useRole } from "@/hooks/use-role";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 interface Project { id: string; name: string; description: string; tasks: { completed: boolean }[]; createdAt: string; updatedAt: string }
+interface Template { id: string; name: string; description: string; sections: { name: string; _count: { tasks: number } }[] }
 
 export default function ProjectsPage() {
   const { canEdit } = useRole();
@@ -17,21 +18,26 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "" });
+  const [form, setForm] = useState({ name: "", description: "", templateId: "" });
+  const [showTemplates, setShowTemplates] = useState(false);
 
   const { data: projects = [], mutate } = useSWR<Project[]>(`/api/projects?filter=${filter}`, fetcher);
+  const { data: templates = [] } = useSWR<Template[]>(modalOpen ? "/api/templates" : null, fetcher);
 
   const filtered = projects.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
   const createProject = async () => {
+    const body: Record<string, string> = { name: form.name, description: form.description };
+    if (form.templateId) body.templateId = form.templateId;
     const res = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(body),
     });
     if (res.ok) {
       setModalOpen(false);
-      setForm({ name: "", description: "" });
+      setForm({ name: "", description: "", templateId: "" });
+      setShowTemplates(false);
       mutate();
     }
   };
@@ -155,13 +161,38 @@ export default function ProjectsPage() {
             </table>
           )}
       </div>
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="New Project">
+      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setShowTemplates(false); setForm({ name: "", description: "", templateId: "" }); }} title="New Project">
         <div className="space-y-3">
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Project name" className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple" autoFocus />
           <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" rows={3} className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y" />
+          {templates.length > 0 && (
+            <div>
+              <button onClick={() => setShowTemplates(!showTemplates)} className="text-xs text-royal-purple hover:text-midnight-blue flex items-center gap-1 transition-colors">
+                <svg className={`w-3 h-3 transition-transform ${showTemplates ? "rotate-90" : ""}`} fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>
+                Start from a template
+              </button>
+              {showTemplates && (
+                <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
+                  <button onClick={() => setForm({ ...form, templateId: "" })} className={`w-full text-left px-3 py-2 rounded border text-sm transition-colors ${!form.templateId ? "border-royal-purple bg-lavender/20" : "border-platinum hover:bg-gray-50"}`}>
+                    <span className="font-medium">Blank project</span>
+                    <span className="text-xs text-brand-gray block">Start from scratch</span>
+                  </button>
+                  {templates.map((t) => {
+                    const taskCount = t.sections.reduce((sum, s) => sum + s._count.tasks, 0);
+                    return (
+                      <button key={t.id} onClick={() => setForm({ ...form, templateId: t.id })} className={`w-full text-left px-3 py-2 rounded border text-sm transition-colors ${form.templateId === t.id ? "border-royal-purple bg-lavender/20" : "border-platinum hover:bg-gray-50"}`}>
+                        <span className="font-medium">{t.name}</span>
+                        <span className="text-xs text-brand-gray block">{t.sections.length} sections, {taskCount} tasks{t.description ? ` -- ${t.description}` : ""}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex justify-end gap-3 mt-4">
-          <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
+          <button onClick={() => { setModalOpen(false); setShowTemplates(false); setForm({ name: "", description: "", templateId: "" }); }} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
           <button onClick={createProject} className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue">Create</button>
         </div>
       </Modal>

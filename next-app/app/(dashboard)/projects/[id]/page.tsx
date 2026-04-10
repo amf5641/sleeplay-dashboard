@@ -96,6 +96,8 @@ interface CustomField { id: string; name: string; type: string; options: string;
 interface TaskCustomFieldValue { id: string; taskId: string; customFieldId: string; value: string }
 interface TaskAttachment { id: string; name: string; url: string; createdAt: string }
 interface TaskComment { id: string; body: string; createdAt: string; author: { id: string; email: string } }
+interface TaskDep { id: string; blockedByTask: { id: string; title: string; completed: boolean } }
+interface TaskBlock { id: string; task: { id: string; title: string; completed: boolean } }
 interface Subtask {
   id: string; title: string; description: string; dueDate: string | null; priority: string; status: string; notes: string; completed: boolean; createdAt: string;
   repeatFreq: string | null; repeatDay: number | null;
@@ -103,6 +105,8 @@ interface Subtask {
   customFieldValues: TaskCustomFieldValue[];
   attachments: TaskAttachment[];
   _count?: { comments: number };
+  dependsOn?: TaskDep[];
+  blocks?: TaskBlock[];
 }
 interface Task extends Subtask {
   subtasks: Subtask[];
@@ -246,6 +250,22 @@ export default function ProjectDetailPage() {
 
   const renderCommentBody = (body: string) => {
     return body.replace(/@\[([^\]]+)\]\([^)]+\)/g, '<strong class="text-royal-purple">@$1</strong>');
+  };
+
+  const addDependency = async (taskId: string, blockedByTaskId: string) => {
+    await fetch(`/api/tasks/${taskId}/dependencies`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ blockedByTaskId }),
+    });
+    mutate();
+  };
+
+  const removeDependency = async (taskId: string, blockedByTaskId: string) => {
+    await fetch(`/api/tasks/${taskId}/dependencies`, {
+      method: "DELETE", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ blockedByTaskId }),
+    });
+    mutate();
   };
 
   const openAddTask = () => {
@@ -777,6 +797,11 @@ export default function ProjectDetailPage() {
                                       <svg className="w-3 h-3 inline-block ml-0.5 align-middle" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
                                     </span>
                                   )}
+                                  {task.dependsOn?.some((d) => !d.blockedByTask.completed) && (
+                                    <span className="text-red-400 flex-shrink-0" title="Blocked">
+                                      <svg className="w-3.5 h-3.5 inline-block align-middle" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                    </span>
+                                  )}
                                 </div>
                               </td>
                               {isColumnVisible("created") && (
@@ -1160,6 +1185,50 @@ export default function ProjectDetailPage() {
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Dependencies */}
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-brand-gray mb-3">Dependencies</h3>
+                {(activeTask.dependsOn?.length || 0) > 0 && (
+                  <div className="space-y-1.5 mb-2">
+                    <p className="text-[11px] text-brand-gray/60">Blocked by:</p>
+                    {activeTask.dependsOn!.map((dep) => (
+                      <div key={dep.id} className="flex items-center gap-2 pl-2">
+                        {dep.blockedByTask.completed ? (
+                          <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        ) : (
+                          <svg className="w-3.5 h-3.5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                        )}
+                        <span className={`text-sm flex-1 ${dep.blockedByTask.completed ? "line-through text-brand-gray/50" : "text-brand-black"}`}>{dep.blockedByTask.title}</span>
+                        <button onClick={() => removeDependency(activeTask.id, dep.blockedByTask.id)} className="p-0.5 rounded hover:bg-red-50 text-brand-gray hover:text-red-500 transition-colors">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {(activeTask.blocks?.length || 0) > 0 && (
+                  <div className="space-y-1.5 mb-2">
+                    <p className="text-[11px] text-brand-gray/60">Blocks:</p>
+                    {activeTask.blocks!.map((b) => (
+                      <div key={b.id} className="flex items-center gap-2 pl-2">
+                        <svg className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                        <span className="text-sm text-brand-gray">{b.task.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <select
+                  value=""
+                  onChange={(e) => { if (e.target.value) addDependency(activeTask.id, e.target.value); }}
+                  className="text-xs text-brand-gray border border-platinum rounded-lg px-2 py-1 bg-white transition-colors hover:border-royal-purple"
+                >
+                  <option value="">+ Add blocker</option>
+                  {project.tasks
+                    .filter((t) => t.id !== activeTask.id && !activeTask.dependsOn?.some((d) => d.blockedByTask.id === t.id))
+                    .map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
+                </select>
               </div>
 
               {/* Description */}

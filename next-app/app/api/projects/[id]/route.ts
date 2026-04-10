@@ -30,6 +30,8 @@ export async function GET(
           customFieldValues: true,
           attachments: { orderBy: { createdAt: "desc" } },
           _count: { select: { comments: true } },
+          dependsOn: { include: { blockedByTask: { select: { id: true, title: true, completed: true } } } },
+          blocks: { include: { task: { select: { id: true, title: true, completed: true } } } },
         },
         orderBy: [{ completed: "asc" }, { title: "asc" }],
       },
