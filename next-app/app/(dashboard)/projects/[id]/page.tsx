@@ -507,7 +507,7 @@ export default function ProjectDetailPage() {
                 {colorPickerOpen && (
                   <div className="absolute top-8 left-0 bg-white border border-platinum rounded-lg shadow-lg p-3 z-50">
                     <p className="text-[10px] uppercase tracking-wider text-brand-gray font-medium mb-2">Color</p>
-                    <div className="grid grid-cols-5 gap-1.5">
+                    <div className="grid grid-cols-5 gap-2">
                       {PROJECT_COLORS.map((c) => (
                         <button
                           key={c}
@@ -516,7 +516,7 @@ export default function ProjectDetailPage() {
                             mutate((prev: Project | undefined) => prev ? { ...prev, color: c } : prev, false);
                             setColorPickerOpen(false);
                           }}
-                          className="w-7 h-7 rounded hover:scale-110 transition-transform flex items-center justify-center"
+                          className="w-9 h-9 rounded-md hover:scale-105 transition-transform flex items-center justify-center"
                           style={{ backgroundColor: c }}
                         >
                           {(project.color || "#664FA6") === c && (

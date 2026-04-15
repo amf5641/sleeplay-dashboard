@@ -178,13 +178,13 @@ export default function ProjectsPage() {
           <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" rows={3} className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y" />
           <div>
             <p className="text-xs text-brand-gray mb-1.5">Color</p>
-            <div className="flex gap-1.5">
+            <div className="flex gap-2 flex-wrap">
               {PROJECT_COLORS.map((c) => (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setForm({ ...form, color: c })}
-                  className="w-7 h-7 rounded hover:scale-110 transition-transform flex items-center justify-center"
+                  className="w-9 h-9 rounded-md hover:scale-105 transition-transform flex items-center justify-center"
                   style={{ backgroundColor: c }}
                 >
                   {form.color === c && (
