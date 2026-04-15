@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       description: body.description ?? "",
       status: body.status ?? "On Track",
       notes: body.notes ?? "",
+      color: body.color ?? "#664FA6",
     },
   });
 

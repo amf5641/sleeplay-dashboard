@@ -9,8 +9,13 @@ import { useRole } from "@/hooks/use-role";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-interface Project { id: string; name: string; description: string; tasks: { completed: boolean }[]; createdAt: string; updatedAt: string }
+interface Project { id: string; name: string; description: string; color: string; tasks: { completed: boolean }[]; createdAt: string; updatedAt: string }
 interface Template { id: string; name: string; description: string; sections: { name: string; _count: { tasks: number } }[] }
+
+const PROJECT_COLORS = [
+  "#E8384F", "#FD612C", "#FDBA31", "#7BC86C", "#4ECBC4",
+  "#4573D2", "#664FA6", "#EA4E9D", "#8DA3A6", "#1B0F3D",
+];
 
 export default function ProjectsPage() {
   const { canEdit } = useRole();
@@ -18,7 +23,7 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "", templateId: "" });
+  const [form, setForm] = useState({ name: "", description: "", templateId: "", color: "#664FA6" });
   const [showTemplates, setShowTemplates] = useState(false);
 
   const { data: projects = [], mutate } = useSWR<Project[]>(`/api/projects?filter=${filter}`, fetcher);
@@ -27,7 +32,7 @@ export default function ProjectsPage() {
   const filtered = projects.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
   const createProject = async () => {
-    const body: Record<string, string> = { name: form.name, description: form.description };
+    const body: Record<string, string> = { name: form.name, description: form.description, color: form.color };
     if (form.templateId) body.templateId = form.templateId;
     const res = await fetch("/api/projects", {
       method: "POST",
@@ -36,7 +41,7 @@ export default function ProjectsPage() {
     });
     if (res.ok) {
       setModalOpen(false);
-      setForm({ name: "", description: "", templateId: "" });
+      setForm({ name: "", description: "", templateId: "", color: "#664FA6" });
       setShowTemplates(false);
       mutate();
     }
@@ -101,7 +106,10 @@ export default function ProjectsPage() {
                     href={`/projects/${proj.id}`}
                     className="bg-white rounded-lg p-5 shadow-[0_4px_34px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_34px_rgba(0,0,0,0.08)] transition-shadow border border-platinum/50"
                   >
-                    <h3 className="font-semibold font-heading text-brand-black mb-1">{proj.name}</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="w-4 h-4 rounded flex-shrink-0" style={{ backgroundColor: proj.color || "#664FA6" }} />
+                      <h3 className="font-semibold font-heading text-brand-black truncate">{proj.name}</h3>
+                    </div>
                     {proj.description && <p className="text-xs text-brand-gray mb-2 line-clamp-2">{proj.description}</p>}
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-1.5 bg-platinum rounded-full overflow-hidden">
@@ -132,9 +140,12 @@ export default function ProjectsPage() {
                   return (
                     <tr key={proj.id} className="border-b border-platinum/50 hover:bg-white-smoke/50 transition-colors">
                       <td className="px-5 py-3">
-                        <Link href={`/projects/${proj.id}`} className="hover:text-royal-purple transition-colors">
-                          <div className="font-semibold font-heading text-sm text-brand-black">{proj.name}</div>
-                          {proj.description && <div className="text-xs text-brand-gray mt-0.5 line-clamp-1">{proj.description}</div>}
+                        <Link href={`/projects/${proj.id}`} className="hover:text-royal-purple transition-colors flex items-start gap-2">
+                          <span className="w-3.5 h-3.5 rounded flex-shrink-0 mt-0.5" style={{ backgroundColor: proj.color || "#664FA6" }} />
+                          <div className="min-w-0">
+                            <div className="font-semibold font-heading text-sm text-brand-black">{proj.name}</div>
+                            {proj.description && <div className="text-xs text-brand-gray mt-0.5 line-clamp-1">{proj.description}</div>}
+                          </div>
                         </Link>
                       </td>
                       <td className="px-5 py-3">
@@ -161,10 +172,28 @@ export default function ProjectsPage() {
             </table>
           )}
       </div>
-      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setShowTemplates(false); setForm({ name: "", description: "", templateId: "" }); }} title="New Project">
+      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setShowTemplates(false); setForm({ name: "", description: "", templateId: "", color: "#664FA6" }); }} title="New Project">
         <div className="space-y-3">
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Project name" className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple" autoFocus />
           <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" rows={3} className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y" />
+          <div>
+            <p className="text-xs text-brand-gray mb-1.5">Color</p>
+            <div className="flex gap-1.5">
+              {PROJECT_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setForm({ ...form, color: c })}
+                  className="w-7 h-7 rounded hover:scale-110 transition-transform flex items-center justify-center"
+                  style={{ backgroundColor: c }}
+                >
+                  {form.color === c && (
+                    <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
           {templates.length > 0 && (
             <div>
               <button onClick={() => setShowTemplates(!showTemplates)} className="text-xs text-royal-purple hover:text-midnight-blue flex items-center gap-1 transition-colors">
@@ -192,7 +221,7 @@ export default function ProjectsPage() {
           )}
         </div>
         <div className="flex justify-end gap-3 mt-4">
-          <button onClick={() => { setModalOpen(false); setShowTemplates(false); setForm({ name: "", description: "", templateId: "" }); }} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
+          <button onClick={() => { setModalOpen(false); setShowTemplates(false); setForm({ name: "", description: "", templateId: "", color: "#664FA6" }); }} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
           <button onClick={createProject} className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue">Create</button>
         </div>
       </Modal>

@@ -112,7 +112,12 @@ interface Subtask {
 interface Task extends Subtask {
   subtasks: Subtask[];
 }
-interface Project { id: string; name: string; description: string; status: string; notes: string; sectionOrder: string; columnConfig: string; tasks: Task[]; members: ProjectMember[]; customFields: CustomField[] }
+interface Project { id: string; name: string; description: string; status: string; notes: string; color: string; sectionOrder: string; columnConfig: string; tasks: Task[]; members: ProjectMember[]; customFields: CustomField[] }
+
+const PROJECT_COLORS = [
+  "#E8384F", "#FD612C", "#FDBA31", "#7BC86C", "#4ECBC4",
+  "#4573D2", "#664FA6", "#EA4E9D", "#8DA3A6", "#1B0F3D",
+];
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -162,6 +167,7 @@ export default function ProjectDetailPage() {
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const [boardDragId, setBoardDragId] = useState<string | null>(null);
   const [boardDragOver, setBoardDragOver] = useState<string | null>(null);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
 
   useEffect(() => {
     if (project && !sectionsInitialized) {
@@ -491,6 +497,37 @@ export default function ProjectDetailPage() {
               <button onClick={() => router.push("/projects")} className="text-brand-gray hover:text-brand-black transition-colors duration-150 flex-shrink-0" title="Back to projects">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
               </button>
+              <div className="relative">
+                <button
+                  onClick={() => canEdit && setColorPickerOpen(!colorPickerOpen)}
+                  className="w-6 h-6 rounded flex-shrink-0 hover:ring-2 hover:ring-offset-1 hover:ring-brand-gray/30 transition-all"
+                  style={{ backgroundColor: project.color || "#664FA6" }}
+                  title="Change project color"
+                />
+                {colorPickerOpen && (
+                  <div className="absolute top-8 left-0 bg-white border border-platinum rounded-lg shadow-lg p-3 z-50">
+                    <p className="text-[10px] uppercase tracking-wider text-brand-gray font-medium mb-2">Color</p>
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {PROJECT_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => {
+                            fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ color: c }) });
+                            mutate((prev: Project | undefined) => prev ? { ...prev, color: c } : prev, false);
+                            setColorPickerOpen(false);
+                          }}
+                          className="w-7 h-7 rounded hover:scale-110 transition-transform flex items-center justify-center"
+                          style={{ backgroundColor: c }}
+                        >
+                          {(project.color || "#664FA6") === c && (
+                            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <h1 className="text-xl font-bold font-heading text-brand-black truncate">{project.name}</h1>
               <span className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[project.status] || "bg-gray-100 text-gray-600"}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${statusDot[project.status] || "bg-gray-400"}`} />

@@ -82,6 +82,7 @@ model Project {
   description  String          @default("")
   status       String          @default("On Track")
   notes        String          @default("")
+  color        String          @default("#664FA6")
   sectionOrder String          @default("[]")
   columnConfig String          @default("{}") // JSON: { hiddenColumns: string[] }
   createdAt    DateTime        @default(now())
