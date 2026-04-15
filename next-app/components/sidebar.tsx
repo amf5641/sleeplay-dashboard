@@ -12,7 +12,7 @@ const navItems = [
   { href: "/notifications", label: "Notifications", icon: "🔔" },
   { href: "/my-tasks", label: "My Tasks", icon: "✅" },
   { href: "/sops", label: "SOPs", icon: "📋" },
-  { href: "/content", label: "Content", icon: "📄" },
+  { href: "/content", label: "Company Docs", icon: "📄" },
   { href: "/org-chart", label: "Org Chart", icon: "🏢" },
   { href: "/team", label: "Meet the Team", icon: "👥" },
   { href: "/projects", label: "Projects", icon: "📁" },
