@@ -6,6 +6,7 @@ import Topbar from "@/components/topbar";
 import Modal from "@/components/modal";
 import ConfirmDialog from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
+import { useDarkMode } from "@/hooks/use-dark-mode";
 import { fetcher, apiFetch } from "@/lib/utils";
 
 const ROLES = ["admin", "manager", "member"] as const;
@@ -42,6 +43,7 @@ export default function SettingsPage() {
   const [totpDisablePassword, setTotpDisablePassword] = useState("");
   const [totpDisableModal, setTotpDisableModal] = useState(false);
   const { data: totpStatus, mutate: mutateTotpStatus } = useSWR<{ enabled: boolean }>("/api/users/totp/status", fetcher);
+  const { theme, setTheme } = useDarkMode();
 
   const addUser = async () => {
     setError("");
@@ -244,6 +246,34 @@ export default function SettingsPage() {
                 Enable 2FA
               </button>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Appearance Section */}
+      <div className="px-6 pb-6">
+        <h2 className="text-sm font-semibold font-heading text-brand-black mb-3">Appearance</h2>
+        <div className="bg-white rounded-lg border border-platinum/50 p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-brand-black">Theme</p>
+              <p className="text-xs text-brand-gray mt-0.5">Choose how the dashboard looks</p>
+            </div>
+            <div className="flex rounded-lg border border-platinum overflow-hidden">
+              {(["light", "dark", "system"] as const).map((option) => (
+                <button
+                  key={option}
+                  onClick={() => setTheme(option)}
+                  className={`px-4 py-1.5 text-sm capitalize transition-colors ${
+                    theme === option
+                      ? "bg-royal-purple text-white"
+                      : "bg-white text-brand-gray hover:bg-white-smoke"
+                  }`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

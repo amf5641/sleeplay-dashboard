@@ -4,6 +4,7 @@ import useSWR from "swr";
 import Link from "next/link";
 import Topbar from "@/components/topbar";
 import EmptyState from "@/components/empty-state";
+import CalendarGrid from "@/components/calendar-grid";
 import { fetcher, apiFetch } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import { STATUS_OPTIONS, statusColors } from "@/components/project/types";
@@ -57,13 +58,8 @@ export default function MyTasksPage() {
     return acc;
   }, {});
 
-  // Calendar helpers
   const year = calMonth.getFullYear();
   const month = calMonth.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const calDays: (number | null)[] = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
-  const monthName = calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   const today = new Date();
   const isToday = (day: number) => day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
@@ -190,49 +186,39 @@ export default function MyTasksPage() {
           )
         ) : (
           <>
-            <div className="flex items-center justify-between mb-4">
-              <button onClick={() => setCalMonth(new Date(year, month - 1, 1))} className="px-3 py-1.5 text-sm bg-platinum rounded hover:bg-lavender">&larr;</button>
-              <h2 className="font-semibold font-heading text-lg">{monthName}</h2>
-              <button onClick={() => setCalMonth(new Date(year, month + 1, 1))} className="px-3 py-1.5 text-sm bg-platinum rounded hover:bg-lavender">&rarr;</button>
-            </div>
-            <div className="bg-white rounded-lg border border-platinum/50 shadow-[0_4px_34px_rgba(0,0,0,0.05)] overflow-hidden">
-              <div className="grid grid-cols-7 gap-px bg-platinum">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-                  <div key={d} className="bg-white-smoke p-2 text-xs text-brand-gray text-center font-medium">{d}</div>
-                ))}
-                {calDays.map((day, i) => {
-                  const dayTasks = day ? getTasksForDay(day) : [];
-                  const dayOfWeek = day ? new Date(year, month, day).getDay() : -1;
-                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                  return (
-                    <div key={i} className={`bg-white p-1.5 min-h-[100px] ${!day ? "bg-white-smoke/50" : ""} ${isWeekend && day ? "bg-gray-50" : ""}`}>
-                      {day && (
-                        <>
-                          <div className={`text-xs mb-1 ${isToday(day) ? "bg-royal-purple text-white w-5 h-5 rounded-full flex items-center justify-center font-bold" : "text-brand-gray"}`}>
-                            {day}
-                          </div>
-                          <div className="space-y-0.5">
-                            {dayTasks.slice(0, 4).map((t) => (
-                              <Link
-                                key={t.id}
-                                href={`/projects/${t.project.id}?task=${t.id}`}
-                                className={`block text-[10px] px-1.5 py-0.5 rounded truncate ${t.completed ? "bg-gray-100 text-gray-400 line-through" : priorityCalColor[t.priority] || "bg-gray-200 text-gray-700"}`}
-                                title={`${t.title} (${t.project.name})`}
-                              >
-                                {t.title}
-                              </Link>
-                            ))}
-                            {dayTasks.length > 4 && (
-                              <div className="text-[10px] text-brand-gray px-1">+{dayTasks.length - 4} more</div>
-                            )}
-                          </div>
-                        </>
+            <CalendarGrid
+              year={year}
+              month={month}
+              onNavigate={(y, m) => setCalMonth(new Date(y, m, 1))}
+              renderDay={(date) => {
+                const day = date.getDate();
+                const dayTasks = getTasksForDay(day);
+                const dayOfWeek = date.getDay();
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                return (
+                  <div className={`p-1.5 min-h-[100px] ${isWeekend ? "bg-gray-50" : ""}`}>
+                    <div className={`text-xs mb-1 ${isToday(day) ? "bg-royal-purple text-white w-5 h-5 rounded-full flex items-center justify-center font-bold" : "text-brand-gray"}`}>
+                      {day}
+                    </div>
+                    <div className="space-y-0.5">
+                      {dayTasks.slice(0, 4).map((t) => (
+                        <Link
+                          key={t.id}
+                          href={`/projects/${t.project.id}?task=${t.id}`}
+                          className={`block text-[10px] px-1.5 py-0.5 rounded truncate ${t.completed ? "bg-gray-100 text-gray-400 line-through" : priorityCalColor[t.priority] || "bg-gray-200 text-gray-700"}`}
+                          title={`${t.title} (${t.project.name})`}
+                        >
+                          {t.title}
+                        </Link>
+                      ))}
+                      {dayTasks.length > 4 && (
+                        <div className="text-[10px] text-brand-gray px-1">+{dayTasks.length - 4} more</div>
                       )}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                  </div>
+                );
+              }}
+            />
             <div className="flex items-center gap-4 mt-3 text-xs text-brand-gray">
               <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-pink-300" /> High priority</div>
               <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-blue-200" /> Medium priority</div>

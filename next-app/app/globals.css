@@ -17,10 +17,29 @@
   --font-body: "Inter", system-ui, sans-serif;
 }
 
+/* Dark mode CSS custom properties */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #F1F0EE;
+  --bg-card: #ffffff;
+  --border-color: #E4E0DB;
+  --text-primary: #181818;
+  --text-secondary: #6B7280;
+}
+
+.dark {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #252540;
+  --bg-card: #2a2a45;
+  --border-color: #3a3a55;
+  --text-primary: #F1F0EE;
+  --text-secondary: #9CA3AF;
+}
+
 body {
   font-family: var(--font-body);
-  background: #ffffff;
-  color: var(--color-brand-black);
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 h1, h2, h3, h4, h5, h6 {
