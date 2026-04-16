@@ -3,8 +3,8 @@ import useSWR from "swr";
 import Link from "next/link";
 import Topbar from "@/components/topbar";
 import EmptyState from "@/components/empty-state";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher, apiFetch } from "@/lib/utils";
+import { useToast } from "@/components/toast";
 
 interface Notification {
   id: string;
@@ -33,12 +33,15 @@ function timeAgo(dateStr: string) {
 }
 
 export default function NotificationsPage() {
+  const { toast } = useToast();
   const { data: notifications = [], mutate } = useSWR<Notification[]>("/api/notifications", fetcher);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAllRead = async () => {
-    await fetch("/api/notifications", { method: "PATCH" });
+    const { error } = await apiFetch("/api/notifications", { method: "PATCH" });
+    if (error) { toast(error, "error"); return; }
+    toast("All notifications marked as read", "success");
     mutate();
   };
 

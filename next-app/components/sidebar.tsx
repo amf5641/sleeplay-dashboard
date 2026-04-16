@@ -4,8 +4,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import Image from "next/image";
 import useSWR from "swr";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Home", icon: "🏠" },

@@ -7,18 +7,20 @@ import Modal from "@/components/modal";
 import ConfirmDialog from "@/components/confirm-dialog";
 import EmptyState from "@/components/empty-state";
 import { useRole } from "@/hooks/use-role";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher, apiFetch } from "@/lib/utils";
+import { useToast } from "@/components/toast";
 
 interface Category { id: string; name: string; parentId: string | null; children?: Category[] }
 interface ContentDoc { id: string; title: string; categoryId: string | null; category?: Category; updatedAt: string }
 
 export default function ContentPage() {
   const { canEdit } = useRole();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [saving, setSaving] = useState(false);
 
   // Category management state
   const [catModalOpen, setCatModalOpen] = useState(false);
@@ -35,31 +37,35 @@ export default function ContentPage() {
   const { data: categories = [], mutate: mutateCats } = useSWR<Category[]>("/api/content-categories", fetcher);
 
   const createDoc = async () => {
-    const res = await fetch("/api/content", {
+    setSaving(true);
+    const { error } = await apiFetch("/api/content", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: newTitle || "Untitled", categoryId: selectedCat }),
     });
-    if (res.ok) {
-      setModalOpen(false);
-      setNewTitle("");
-      mutate();
-    }
+    setSaving(false);
+    if (error) { toast(error, "error"); return; }
+    toast("Document created", "success");
+    setModalOpen(false);
+    setNewTitle("");
+    mutate();
   };
 
   const deleteDoc = async (id: string) => {
-    await fetch(`/api/content/${id}`, { method: "DELETE" });
+    const { error } = await apiFetch(`/api/content/${id}`, { method: "DELETE" });
+    if (error) { toast(error, "error"); return; }
+    toast("Document deleted", "success");
     mutate();
   };
 
   const createCategory = async () => {
     const name = catName.trim();
     if (!name) return;
-    await fetch("/api/content-categories", {
+    const { error } = await apiFetch("/api/content-categories", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, parentId: catModalParentId }),
     });
+    if (error) { toast(error, "error"); return; }
+    toast("Category created", "success");
     setCatModalOpen(false);
     setCatName("");
     setCatModalParentId(null);
@@ -69,17 +75,18 @@ export default function ContentPage() {
   const renameCategory = async (id: string, name: string) => {
     const trimmed = name.trim();
     if (!trimmed) { setRenamingCat(null); return; }
-    await fetch(`/api/content-categories/${id}`, {
+    const { error } = await apiFetch(`/api/content-categories/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: trimmed }),
     });
+    if (error) { toast(error, "error"); return; }
     setRenamingCat(null);
     mutateCats();
   };
 
   const deleteCategory = async (id: string) => {
-    await fetch(`/api/content-categories/${id}`, { method: "DELETE" });
+    const { error } = await apiFetch(`/api/content-categories/${id}`, { method: "DELETE" });
+    if (error) { toast(error, "error"); return; }
     if (selectedCat === id) setSelectedCat(null);
     setConfirmDeleteCat(null);
     mutateCats();
@@ -87,11 +94,11 @@ export default function ContentPage() {
   };
 
   const moveDocToCategory = async (docId: string, categoryId: string | null) => {
-    await fetch(`/api/content/${docId}`, {
+    const { error } = await apiFetch(`/api/content/${docId}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ categoryId }),
     });
+    if (error) { toast(error, "error"); return; }
     setDragDocId(null);
     setDragOverCat(null);
     mutate();
@@ -268,7 +275,7 @@ export default function ContentPage() {
         </div>
         <div className="flex justify-end gap-3 mt-4">
           <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
-          <button onClick={createDoc} className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue">Create</button>
+          <button onClick={createDoc} disabled={saving} className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue disabled:opacity-50 disabled:cursor-not-allowed">{saving ? "Creating..." : "Create"}</button>
         </div>
       </Modal>
 

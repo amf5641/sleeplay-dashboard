@@ -4,8 +4,8 @@ import useSWR from "swr";
 import Link from "next/link";
 import Topbar from "@/components/topbar";
 import EmptyState from "@/components/empty-state";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher, apiFetch } from "@/lib/utils";
+import { useToast } from "@/components/toast";
 
 const STATUS_OPTIONS = ["On Track", "Slightly Off", "Off Track", "On Hold", "Done"] as const;
 const statusColors: Record<string, string> = {
@@ -31,6 +31,7 @@ interface MyTask {
 }
 
 export default function MyTasksPage() {
+  const { toast } = useToast();
   const [view, setView] = useState<"list" | "calendar">("list");
   const [filter, setFilter] = useState<"all" | "incomplete" | "complete">("incomplete");
   const [calMonth, setCalMonth] = useState(new Date());
@@ -40,17 +41,20 @@ export default function MyTasksPage() {
   const tasks = filter === "all" ? allTasks : filter === "incomplete" ? allTasks.filter((t) => !t.completed) : allTasks.filter((t) => t.completed);
 
   const updateField = async (taskId: string, field: string, value: unknown) => {
-    await fetch(`/api/tasks/${taskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: value }) });
+    const { error } = await apiFetch(`/api/tasks/${taskId}`, { method: "PUT", body: JSON.stringify({ [field]: value }) });
+    if (error) { toast(error, "error"); return; }
     mutate();
   };
 
   const updateCollaborators = async (taskId: string, collaborators: string[]) => {
-    await fetch(`/api/tasks/${taskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ collaborators }) });
+    const { error } = await apiFetch(`/api/tasks/${taskId}`, { method: "PUT", body: JSON.stringify({ collaborators }) });
+    if (error) { toast(error, "error"); return; }
     mutate();
   };
 
   const toggleTask = async (taskId: string, completed: boolean) => {
-    await fetch(`/api/tasks/${taskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ completed: !completed }) });
+    const { error } = await apiFetch(`/api/tasks/${taskId}`, { method: "PUT", body: JSON.stringify({ completed: !completed }) });
+    if (error) { toast(error, "error"); return; }
     mutate();
   };
 

@@ -5,8 +5,8 @@ import { useSession } from "next-auth/react";
 import Topbar from "@/components/topbar";
 import Modal from "@/components/modal";
 import EmptyState from "@/components/empty-state";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher, apiFetch } from "@/lib/utils";
+import { useToast } from "@/components/toast";
 const ADMIN_EMAIL = "admin@sleeplay.com";
 
 interface Person {
@@ -88,6 +88,8 @@ export default function PtoPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ personId: "", type: "vacation", startDate: "", endDate: "", note: "" });
   const [halfDay, setHalfDay] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
 
   const { data: requests = [], mutate } = useSWR<PtoRequest[]>(`/api/pto?status=${filter}`, fetcher);
   const { data: people = [] } = useSWR<Person[]>("/api/people", fetcher);
@@ -119,41 +121,41 @@ export default function PtoPage() {
 
   const createRequest = async () => {
     if (!form.personId || !form.startDate || !form.endDate || days <= 0) return;
-    const res = await fetch("/api/pto", {
+    setSaving(true);
+    const { error } = await apiFetch("/api/pto", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...form, days }),
     });
-    if (res.ok) {
-      setModalOpen(false);
-      setForm({ personId: isAdmin ? "" : (myPerson?.id ?? ""), type: "vacation", startDate: "", endDate: "", note: "" });
-      setHalfDay(false);
-      mutate();
-      mutateBalance();
-      mutateAllBalances();
-    }
+    setSaving(false);
+    if (error) { toast(error, "error"); return; }
+    toast("PTO request submitted", "success");
+    setModalOpen(false);
+    setForm({ personId: isAdmin ? "" : (myPerson?.id ?? ""), type: "vacation", startDate: "", endDate: "", note: "" });
+    setHalfDay(false);
+    mutate();
+    mutateBalance();
+    mutateAllBalances();
   };
 
   const updateStatus = async (id: string, status: string, reviewerId?: string) => {
-    const res = await fetch(`/api/pto/${id}`, {
+    const { error } = await apiFetch(`/api/pto/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status, reviewerId }),
     });
-    if (res.ok) {
-      mutate();
-      mutateBalance();
-      mutateAllBalances();
-    }
+    if (error) { toast(error, "error"); return; }
+    toast(`Request ${status}`, "success");
+    mutate();
+    mutateBalance();
+    mutateAllBalances();
   };
 
   const deleteRequest = async (id: string) => {
-    const res = await fetch(`/api/pto/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      mutate();
-      mutateBalance();
-      mutateAllBalances();
-    }
+    const { error } = await apiFetch(`/api/pto/${id}`, { method: "DELETE" });
+    if (error) { toast(error, "error"); return; }
+    toast("PTO request deleted", "success");
+    mutate();
+    mutateBalance();
+    mutateAllBalances();
   };
 
   return (
@@ -567,10 +569,10 @@ export default function PtoPage() {
           </button>
           <button
             onClick={createRequest}
-            disabled={!form.personId || !form.startDate || !form.endDate || days <= 0}
+            disabled={saving || !form.personId || !form.startDate || !form.endDate || days <= 0}
             className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Submit Request
+            {saving ? "Submitting..." : "Submit Request"}
           </button>
         </div>
       </Modal>

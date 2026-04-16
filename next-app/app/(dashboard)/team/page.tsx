@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import Topbar from "@/components/topbar";
 import Modal from "@/components/modal";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher, apiFetch } from "@/lib/utils";
+import { useToast } from "@/components/toast";
 const ADMIN_EMAIL = "admin@sleeplay.com";
 
 interface Person { id: string; name: string; title: string; location: string; photo: string | null }
@@ -14,22 +14,25 @@ interface Person { id: string; name: string; title: string; location: string; ph
 export default function TeamPage() {
   const { data: session } = useSession();
   const isAdmin = session?.user?.email === ADMIN_EMAIL;
+  const { toast } = useToast();
   const { data: people = [], mutate } = useSWR<Person[]>("/api/people", fetcher);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ name: "", title: "", location: "", email: "", managerId: "" });
+  const [saving, setSaving] = useState(false);
 
   const createPerson = async () => {
     if (!form.name) return;
-    const res = await fetch("/api/people", {
+    setSaving(true);
+    const { error } = await apiFetch("/api/people", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...form, managerId: form.managerId || null }),
     });
-    if (res.ok) {
-      setModalOpen(false);
-      setForm({ name: "", title: "", location: "", email: "", managerId: "" });
-      mutate();
-    }
+    setSaving(false);
+    if (error) { toast(error, "error"); return; }
+    toast("Team member added", "success");
+    setModalOpen(false);
+    setForm({ name: "", title: "", location: "", email: "", managerId: "" });
+    mutate();
   };
 
   return (
@@ -129,10 +132,10 @@ export default function TeamPage() {
           <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
           <button
             onClick={createPerson}
-            disabled={!form.name}
+            disabled={saving || !form.name}
             className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Add
+            {saving ? "Adding..." : "Add"}
           </button>
         </div>
       </Modal>

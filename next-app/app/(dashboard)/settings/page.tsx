@@ -5,8 +5,8 @@ import { useSession } from "next-auth/react";
 import Topbar from "@/components/topbar";
 import Modal from "@/components/modal";
 import ConfirmDialog from "@/components/confirm-dialog";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { useToast } from "@/components/toast";
+import { fetcher, apiFetch } from "@/lib/utils";
 
 const ROLES = ["admin", "manager", "member"] as const;
 const roleColors: Record<string, string> = {
@@ -19,6 +19,7 @@ interface User { id: string; email: string; role: string; createdAt: string }
 
 export default function SettingsPage() {
   const { data: session } = useSession();
+  const { toast } = useToast();
   const userRole = (session?.user as Record<string, unknown>)?.role as string | undefined;
   const isAdmin = userRole === "admin";
   const { data: users = [], mutate } = useSWR<User[]>("/api/users", fetcher);
@@ -78,17 +79,17 @@ export default function SettingsPage() {
   };
 
   const removeUser = async (id: string) => {
-    await fetch(`/api/users/${id}`, { method: "DELETE" });
+    const { error: err } = await apiFetch(`/api/users/${id}`, { method: "DELETE" });
+    if (err) { toast(err, "error"); return; }
     mutate();
+    toast("User removed", "success");
   };
 
   const updateRole = async (id: string, role: string) => {
-    await fetch(`/api/users/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role }),
-    });
+    const { error: err } = await apiFetch(`/api/users/${id}`, { method: "PUT", body: JSON.stringify({ role }) });
+    if (err) { toast(err, "error"); return; }
     mutate();
+    toast("Role updated", "success");
   };
 
   const doResetPassword = async () => {
@@ -109,6 +110,7 @@ export default function SettingsPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
+    toast("Copied to clipboard", "success");
   };
 
   const startTotpSetup = async () => {

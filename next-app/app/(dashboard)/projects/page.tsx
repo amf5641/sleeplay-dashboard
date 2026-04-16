@@ -6,8 +6,8 @@ import Topbar from "@/components/topbar";
 import Modal from "@/components/modal";
 import EmptyState from "@/components/empty-state";
 import { useRole } from "@/hooks/use-role";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { useToast } from "@/components/toast";
+import { fetcher, apiFetch } from "@/lib/utils";
 
 interface Project { id: string; name: string; description: string; color: string; departmentId: string | null; department: { id: string; name: string; color: string } | null; tasks: { completed: boolean }[]; createdAt: string; updatedAt: string }
 interface Department { id: string; name: string; color: string; _count: { projects: number } }
@@ -20,6 +20,8 @@ const PROJECT_COLORS = [
 
 export default function ProjectsPage() {
   const { canEdit } = useRole();
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "list">("list");
@@ -53,53 +55,46 @@ export default function ProjectsPage() {
   };
 
   const createProject = async () => {
+    if (!form.name.trim()) { toast("Project name is required", "error"); return; }
+    setSaving(true);
     const body: Record<string, string> = { name: form.name, description: form.description, color: form.color };
     if (form.templateId) body.templateId = form.templateId;
     if (form.departmentId) body.departmentId = form.departmentId;
-    const res = await fetch("/api/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) {
-      setModalOpen(false);
-      setForm({ name: "", description: "", templateId: "", color: "#664FA6", departmentId: "" });
-      setShowTemplates(false);
-      mutate();
-      mutateDepts();
-    }
+    const { error } = await apiFetch("/api/projects", { method: "POST", body: JSON.stringify(body) });
+    setSaving(false);
+    if (error) { toast(error, "error"); return; }
+    setModalOpen(false);
+    setForm({ name: "", description: "", templateId: "", color: "#664FA6", departmentId: "" });
+    setShowTemplates(false);
+    mutate();
+    mutateDepts();
+    toast("Project created", "success");
   };
 
   const createDepartment = async () => {
-    const res = await fetch("/api/departments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(deptForm),
-    });
-    if (res.ok) {
-      setDeptModalOpen(false);
-      setDeptForm({ name: "", color: "#664FA6" });
-      mutateDepts();
-    }
+    if (!deptForm.name.trim()) { toast("Department name is required", "error"); return; }
+    setSaving(true);
+    const { error } = await apiFetch("/api/departments", { method: "POST", body: JSON.stringify(deptForm) });
+    setSaving(false);
+    if (error) { toast(error, "error"); return; }
+    setDeptModalOpen(false);
+    setDeptForm({ name: "", color: "#664FA6" });
+    mutateDepts();
+    toast("Department created", "success");
   };
 
   const deleteDepartment = async (id: string) => {
     if (!confirm("Delete this department? Projects will be moved to Uncategorized.")) return;
-    await fetch("/api/departments", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
+    const { error } = await apiFetch("/api/departments", { method: "DELETE", body: JSON.stringify({ id }) });
+    if (error) { toast(error, "error"); return; }
     mutateDepts();
     mutate();
+    toast("Department deleted", "success");
   };
 
   const moveProject = async (projectId: string, departmentId: string | null) => {
-    await fetch(`/api/projects/${projectId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ departmentId }),
-    });
+    const { error } = await apiFetch(`/api/projects/${projectId}`, { method: "PUT", body: JSON.stringify({ departmentId }) });
+    if (error) { toast(error, "error"); return; }
     setMovingProjectId(null);
     mutate();
     mutateDepts();
@@ -407,7 +402,7 @@ export default function ProjectsPage() {
         </div>
         <div className="flex justify-end gap-3 mt-4">
           <button onClick={() => { setModalOpen(false); setShowTemplates(false); setForm({ name: "", description: "", templateId: "", color: "#664FA6", departmentId: "" }); }} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
-          <button onClick={createProject} className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue">Create</button>
+          <button onClick={createProject} disabled={saving} className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue disabled:opacity-50 disabled:cursor-not-allowed">{saving ? "Creating..." : "Create"}</button>
         </div>
       </Modal>
 
@@ -436,7 +431,7 @@ export default function ProjectsPage() {
         </div>
         <div className="flex justify-end gap-3 mt-4">
           <button onClick={() => { setDeptModalOpen(false); setDeptForm({ name: "", color: "#664FA6" }); }} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
-          <button onClick={createDepartment} className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue">Create</button>
+          <button onClick={createDepartment} disabled={saving} className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue disabled:opacity-50 disabled:cursor-not-allowed">{saving ? "Creating..." : "Create"}</button>
         </div>
       </Modal>
     </>
