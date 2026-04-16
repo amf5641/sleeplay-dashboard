@@ -9,7 +9,8 @@ import { useRole } from "@/hooks/use-role";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-interface Project { id: string; name: string; description: string; color: string; tasks: { completed: boolean }[]; createdAt: string; updatedAt: string }
+interface Project { id: string; name: string; description: string; color: string; departmentId: string | null; department: { id: string; name: string; color: string } | null; tasks: { completed: boolean }[]; createdAt: string; updatedAt: string }
+interface Department { id: string; name: string; color: string; _count: { projects: number } }
 interface Template { id: string; name: string; description: string; sections: { name: string; _count: { tasks: number } }[] }
 
 const PROJECT_COLORS = [
@@ -23,17 +24,37 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "", templateId: "", color: "#664FA6" });
+  const [deptModalOpen, setDeptModalOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", description: "", templateId: "", color: "#664FA6", departmentId: "" });
+  const [deptForm, setDeptForm] = useState({ name: "", color: "#664FA6" });
   const [showTemplates, setShowTemplates] = useState(false);
+  const [collapsedDepts, setCollapsedDepts] = useState<Set<string>>(new Set());
 
   const { data: projects = [], mutate } = useSWR<Project[]>(`/api/projects?filter=${filter}`, fetcher);
+  const { data: departments = [], mutate: mutateDepts } = useSWR<Department[]>("/api/departments", fetcher);
   const { data: templates = [] } = useSWR<Template[]>(modalOpen ? "/api/templates" : null, fetcher);
 
   const filtered = projects.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
+  // Group projects by department
+  const grouped = departments.map((dept) => ({
+    ...dept,
+    projects: filtered.filter((p) => p.departmentId === dept.id),
+  }));
+  const ungrouped = filtered.filter((p) => !p.departmentId);
+
+  const toggleCollapse = (id: string) => {
+    setCollapsedDepts((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   const createProject = async () => {
     const body: Record<string, string> = { name: form.name, description: form.description, color: form.color };
     if (form.templateId) body.templateId = form.templateId;
+    if (form.departmentId) body.departmentId = form.departmentId;
     const res = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -41,10 +62,146 @@ export default function ProjectsPage() {
     });
     if (res.ok) {
       setModalOpen(false);
-      setForm({ name: "", description: "", templateId: "", color: "#664FA6" });
+      setForm({ name: "", description: "", templateId: "", color: "#664FA6", departmentId: "" });
       setShowTemplates(false);
       mutate();
+      mutateDepts();
     }
+  };
+
+  const createDepartment = async () => {
+    const res = await fetch("/api/departments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(deptForm),
+    });
+    if (res.ok) {
+      setDeptModalOpen(false);
+      setDeptForm({ name: "", color: "#664FA6" });
+      mutateDepts();
+    }
+  };
+
+  const deleteDepartment = async (id: string) => {
+    if (!confirm("Delete this department? Projects will be moved to Uncategorized.")) return;
+    await fetch("/api/departments", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    mutateDepts();
+    mutate();
+  };
+
+  const renderProjectCard = (proj: Project) => {
+    const total = proj.tasks.length;
+    const done = proj.tasks.filter((t) => t.completed).length;
+    return (
+      <Link
+        key={proj.id}
+        href={`/projects/${proj.id}`}
+        className="bg-white rounded-lg p-5 shadow-[0_4px_34px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_34px_rgba(0,0,0,0.08)] transition-shadow border border-platinum/50"
+      >
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-4 h-4 rounded flex-shrink-0" style={{ backgroundColor: proj.color || "#664FA6" }} />
+          <h3 className="font-semibold font-heading text-brand-black truncate">{proj.name}</h3>
+        </div>
+        {proj.description && <p className="text-xs text-brand-gray mb-2 line-clamp-2">{proj.description}</p>}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-1.5 bg-platinum rounded-full overflow-hidden">
+            <div className="h-full bg-royal-purple rounded-full" style={{ width: total ? `${(done / total) * 100}%` : "0%" }} />
+          </div>
+          <span className="text-xs text-brand-gray">{done}/{total}</span>
+        </div>
+      </Link>
+    );
+  };
+
+  const renderProjectRow = (proj: Project) => {
+    const total = proj.tasks.length;
+    const done = proj.tasks.filter((t) => t.completed).length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    return (
+      <tr key={proj.id} className="border-b border-platinum/50 hover:bg-white-smoke/50 transition-colors">
+        <td className="px-5 py-3">
+          <Link href={`/projects/${proj.id}`} className="hover:text-royal-purple transition-colors flex items-start gap-2">
+            <span className="w-3.5 h-3.5 rounded flex-shrink-0 mt-0.5" style={{ backgroundColor: proj.color || "#664FA6" }} />
+            <div className="min-w-0">
+              <div className="font-semibold font-heading text-sm text-brand-black">{proj.name}</div>
+              {proj.description && <div className="text-xs text-brand-gray mt-0.5 line-clamp-1">{proj.description}</div>}
+            </div>
+          </Link>
+        </td>
+        <td className="px-5 py-3">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-platinum rounded-full overflow-hidden">
+              <div className="h-full bg-royal-purple rounded-full" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="text-xs text-brand-gray w-8 text-right">{pct}%</span>
+          </div>
+        </td>
+        <td className="px-5 py-3 text-center">
+          <span className="text-sm text-brand-gray">{done}<span className="text-brand-gray/50">/{total}</span></span>
+        </td>
+        <td className="px-5 py-3 text-xs text-brand-gray whitespace-nowrap">
+          {new Date(proj.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+        </td>
+        <td className="px-5 py-3 text-xs text-brand-gray whitespace-nowrap">
+          {new Date(proj.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+        </td>
+      </tr>
+    );
+  };
+
+  const renderDeptSection = (dept: { id: string; name: string; color: string; projects: Project[] }, isDeletable: boolean) => {
+    const collapsed = collapsedDepts.has(dept.id);
+    if (dept.projects.length === 0 && dept.id === "__ungrouped") return null;
+
+    return (
+      <div key={dept.id} className="mb-6">
+        <div className="flex items-center gap-2 mb-3 group">
+          <button onClick={() => toggleCollapse(dept.id)} className="flex items-center gap-2 hover:opacity-80">
+            <svg className={`w-4 h-4 text-brand-gray transition-transform ${collapsed ? "" : "rotate-90"}`} fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+            </svg>
+            <span className="w-3.5 h-3.5 rounded flex-shrink-0" style={{ backgroundColor: dept.color }} />
+            <h2 className="font-heading font-semibold text-brand-black text-sm">{dept.name}</h2>
+            <span className="text-xs text-brand-gray">({dept.projects.length})</span>
+          </button>
+          {isDeletable && canEdit && (
+            <button
+              onClick={() => deleteDepartment(dept.id)}
+              className="opacity-0 group-hover:opacity-100 text-xs text-red-400 hover:text-red-600 transition-all ml-1"
+              title="Delete department"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            </button>
+          )}
+        </div>
+        {!collapsed && (
+          dept.projects.length === 0 ? (
+            <p className="text-xs text-brand-gray ml-10">No projects in this department</p>
+          ) : view === "grid" ? (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 ml-6">
+              {dept.projects.map(renderProjectCard)}
+            </div>
+          ) : (
+            <table className="w-full bg-white rounded-lg border border-platinum/50 shadow-[0_4px_34px_rgba(0,0,0,0.05)] overflow-hidden ml-6">
+              <thead>
+                <tr className="text-left text-xs text-brand-gray border-b border-platinum bg-white-smoke/50">
+                  <th className="px-5 py-3 font-medium">Project</th>
+                  <th className="px-5 py-3 font-medium w-48">Progress</th>
+                  <th className="px-5 py-3 font-medium w-24 text-center">Tasks</th>
+                  <th className="px-5 py-3 font-medium w-32">Created</th>
+                  <th className="px-5 py-3 font-medium w-32">Updated</th>
+                </tr>
+              </thead>
+              <tbody>{dept.projects.map(renderProjectRow)}</tbody>
+            </table>
+          )
+        )}
+      </div>
+    );
   };
 
   return (
@@ -57,9 +214,14 @@ export default function ProjectsPage() {
         searchPlaceholder="Search projects..."
         actions={
           canEdit ? (
-            <button onClick={() => setModalOpen(true)} className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue transition-colors">
-              + New Project
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => setDeptModalOpen(true)} className="px-4 py-1.5 bg-white text-brand-gray text-sm rounded border border-platinum hover:bg-white-smoke transition-colors">
+                + Department
+              </button>
+              <button onClick={() => setModalOpen(true)} className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue transition-colors">
+                + New Project
+              </button>
+            </div>
           ) : undefined
         }
       />
@@ -93,89 +255,37 @@ export default function ProjectsPage() {
             </button>
           </div>
         </div>
-        {filtered.length === 0 ? (
-          <EmptyState title="No projects" description="Create a project to start tracking tasks." />
-        ) : view === "grid" ? (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
-              {filtered.map((proj) => {
-                const total = proj.tasks.length;
-                const done = proj.tasks.filter((t) => t.completed).length;
-                return (
-                  <Link
-                    key={proj.id}
-                    href={`/projects/${proj.id}`}
-                    className="bg-white rounded-lg p-5 shadow-[0_4px_34px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_34px_rgba(0,0,0,0.08)] transition-shadow border border-platinum/50"
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="w-4 h-4 rounded flex-shrink-0" style={{ backgroundColor: proj.color || "#664FA6" }} />
-                      <h3 className="font-semibold font-heading text-brand-black truncate">{proj.name}</h3>
-                    </div>
-                    {proj.description && <p className="text-xs text-brand-gray mb-2 line-clamp-2">{proj.description}</p>}
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-platinum rounded-full overflow-hidden">
-                        <div className="h-full bg-royal-purple rounded-full" style={{ width: total ? `${(done / total) * 100}%` : "0%" }} />
-                      </div>
-                      <span className="text-xs text-brand-gray">{done}/{total}</span>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          ) : (
-            <table className="w-full bg-white rounded-lg border border-platinum/50 shadow-[0_4px_34px_rgba(0,0,0,0.05)] overflow-hidden">
-              <thead>
-                <tr className="text-left text-xs text-brand-gray border-b border-platinum bg-white-smoke/50">
-                  <th className="px-5 py-3 font-medium">Project</th>
-                  <th className="px-5 py-3 font-medium w-48">Progress</th>
-                  <th className="px-5 py-3 font-medium w-24 text-center">Tasks</th>
-                  <th className="px-5 py-3 font-medium w-32">Created</th>
-                  <th className="px-5 py-3 font-medium w-32">Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((proj) => {
-                  const total = proj.tasks.length;
-                  const done = proj.tasks.filter((t) => t.completed).length;
-                  const pct = total ? Math.round((done / total) * 100) : 0;
-                  return (
-                    <tr key={proj.id} className="border-b border-platinum/50 hover:bg-white-smoke/50 transition-colors">
-                      <td className="px-5 py-3">
-                        <Link href={`/projects/${proj.id}`} className="hover:text-royal-purple transition-colors flex items-start gap-2">
-                          <span className="w-3.5 h-3.5 rounded flex-shrink-0 mt-0.5" style={{ backgroundColor: proj.color || "#664FA6" }} />
-                          <div className="min-w-0">
-                            <div className="font-semibold font-heading text-sm text-brand-black">{proj.name}</div>
-                            {proj.description && <div className="text-xs text-brand-gray mt-0.5 line-clamp-1">{proj.description}</div>}
-                          </div>
-                        </Link>
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 bg-platinum rounded-full overflow-hidden">
-                            <div className="h-full bg-royal-purple rounded-full" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="text-xs text-brand-gray w-8 text-right">{pct}%</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <span className="text-sm text-brand-gray">{done}<span className="text-brand-gray/50">/{total}</span></span>
-                      </td>
-                      <td className="px-5 py-3 text-xs text-brand-gray whitespace-nowrap">
-                        {new Date(proj.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </td>
-                      <td className="px-5 py-3 text-xs text-brand-gray whitespace-nowrap">
-                        {new Date(proj.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+
+        {filtered.length === 0 && departments.length === 0 ? (
+          <EmptyState title="No projects" description="Create a department and project to start tracking tasks." />
+        ) : (
+          <>
+            {grouped.map((dept) => renderDeptSection(dept, true))}
+            {ungrouped.length > 0 && renderDeptSection({ id: "__ungrouped", name: "Uncategorized", color: "#8DA3A6", projects: ungrouped }, false)}
+          </>
+        )}
       </div>
-      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setShowTemplates(false); setForm({ name: "", description: "", templateId: "", color: "#664FA6" }); }} title="New Project">
+
+      {/* New Project Modal */}
+      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setShowTemplates(false); setForm({ name: "", description: "", templateId: "", color: "#664FA6", departmentId: "" }); }} title="New Project">
         <div className="space-y-3">
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Project name" className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple" autoFocus />
           <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" rows={3} className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y" />
+          {departments.length > 0 && (
+            <div>
+              <p className="text-xs text-brand-gray mb-1.5">Department</p>
+              <select
+                value={form.departmentId}
+                onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
+                className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple bg-white"
+              >
+                <option value="">No department</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <p className="text-xs text-brand-gray mb-1.5">Color</p>
             <div className="flex gap-2 flex-wrap">
@@ -221,8 +331,37 @@ export default function ProjectsPage() {
           )}
         </div>
         <div className="flex justify-end gap-3 mt-4">
-          <button onClick={() => { setModalOpen(false); setShowTemplates(false); setForm({ name: "", description: "", templateId: "", color: "#664FA6" }); }} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
+          <button onClick={() => { setModalOpen(false); setShowTemplates(false); setForm({ name: "", description: "", templateId: "", color: "#664FA6", departmentId: "" }); }} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
           <button onClick={createProject} className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue">Create</button>
+        </div>
+      </Modal>
+
+      {/* New Department Modal */}
+      <Modal open={deptModalOpen} onClose={() => { setDeptModalOpen(false); setDeptForm({ name: "", color: "#664FA6" }); }} title="New Department">
+        <div className="space-y-3">
+          <input value={deptForm.name} onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })} placeholder="Department name" className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple" autoFocus />
+          <div>
+            <p className="text-xs text-brand-gray mb-1.5">Color</p>
+            <div className="flex gap-2 flex-wrap">
+              {PROJECT_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setDeptForm({ ...deptForm, color: c })}
+                  className="w-9 h-9 rounded-md hover:scale-105 transition-transform flex items-center justify-center"
+                  style={{ backgroundColor: c }}
+                >
+                  {deptForm.color === c && (
+                    <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 mt-4">
+          <button onClick={() => { setDeptModalOpen(false); setDeptForm({ name: "", color: "#664FA6" }); }} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
+          <button onClick={createDepartment} className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue">Create</button>
         </div>
       </Modal>
     </>

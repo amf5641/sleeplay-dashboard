@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     include: {
       tasks: true,
       members: { include: { user: { select: { id: true, email: true } } } },
+      department: true,
       _count: { select: { tasks: true } },
     },
     orderBy: { updatedAt: "desc" },
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
       status: body.status ?? "On Track",
       notes: body.notes ?? "",
       color: body.color ?? "#664FA6",
+      departmentId: body.departmentId || null,
     },
   });
 

@@ -30,6 +30,13 @@ interface SidebarProject {
   id: string;
   name: string;
   color: string;
+  departmentId: string | null;
+}
+
+interface SidebarDepartment {
+  id: string;
+  name: string;
+  color: string;
 }
 
 export default function Sidebar() {
@@ -37,6 +44,7 @@ export default function Sidebar() {
   const { data: session } = useSession();
   const { data: notifications = [] } = useSWR<Notification[]>("/api/notifications", fetcher, { refreshInterval: 30000 });
   const { data: projects = [] } = useSWR<SidebarProject[]>("/api/projects", fetcher);
+  const { data: departments = [] } = useSWR<SidebarDepartment[]>("/api/departments", fetcher);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -75,11 +83,39 @@ export default function Sidebar() {
             </Link>
           );
         })}
-        {/* Project list */}
+        {/* Project list grouped by department */}
         {projects.length > 0 && (
           <div className="mt-2 pt-2 border-t border-white/10">
             <p className="px-5 py-1.5 text-[10px] uppercase tracking-wider text-white/30 font-medium">Projects</p>
-            {projects.map((proj) => {
+            {departments.map((dept) => {
+              const deptProjects = projects.filter((p) => p.departmentId === dept.id);
+              if (deptProjects.length === 0) return null;
+              return (
+                <div key={dept.id} className="mb-1">
+                  <p className="px-5 py-1 text-[10px] text-white/40 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: dept.color }} />
+                    {dept.name}
+                  </p>
+                  {deptProjects.map((proj) => {
+                    const active = pathname === `/projects/${proj.id}`;
+                    return (
+                      <Link
+                        key={proj.id}
+                        href={`/projects/${proj.id}`}
+                        className={`flex items-center gap-2.5 px-5 pl-8 py-1.5 text-sm transition-colors ${
+                          active ? "bg-midnight-blue text-white font-medium" : "text-white/70 hover:text-white hover:bg-white/5"
+                        }`}
+                      >
+                        <span className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: proj.color || "#664FA6" }} />
+                        <span className="truncate">{proj.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            })}
+            {/* Ungrouped projects */}
+            {projects.filter((p) => !p.departmentId).map((proj) => {
               const active = pathname === `/projects/${proj.id}`;
               return (
                 <Link
