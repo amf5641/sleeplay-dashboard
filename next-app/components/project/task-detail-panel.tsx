@@ -1,6 +1,7 @@
 "use client";
-import React from "react";
+import React, { useRef, useCallback } from "react";
 import type { Task, Project, Person, TaskComment, TaskCustomFieldValue } from "@/components/project/types";
+import { useClickOutside, useEscapeKey } from "@/hooks/use-click-outside";
 import { STATUS_OPTIONS, statusColors, isUrl, toHref } from "@/components/project/types";
 import Initials from "@/components/project/initials";
 import RichTextEditor from "@/components/project/rich-text-editor";
@@ -76,6 +77,11 @@ export default function TaskDetailPanel({
   commentInputRef,
   onAddSubtask,
 }: TaskDetailPanelProps) {
+  const mentionsRef = useRef<HTMLDivElement>(null);
+  const closeMentions = useCallback(() => setShowMentions(false), [setShowMentions]);
+  useClickOutside(mentionsRef, closeMentions, showMentions);
+  useEscapeKey(closeMentions, showMentions, true);
+
   const today = new Date().toISOString().split("T")[0];
   const isOverdue = (d: string | null) => d && d < today;
 
@@ -391,7 +397,7 @@ export default function TaskDetailPanel({
               className="w-full text-sm px-3 py-2 border border-platinum rounded-lg focus:outline-none focus:border-royal-purple resize-none bg-white"
             />
             {showMentions && (
-              <div className="absolute bottom-full mb-1 left-0 bg-white border border-platinum rounded-lg shadow-lg w-56 py-1 max-h-40 overflow-y-auto z-10">
+              <div ref={mentionsRef} className="absolute bottom-full mb-1 left-0 bg-white border border-platinum rounded-lg shadow-lg w-56 py-1 max-h-40 overflow-y-auto z-10">
                 {people.filter((p) => !mentionFilter || p.name.toLowerCase().includes(mentionFilter.toLowerCase())).map((p) => (
                   <button key={p.id} onClick={() => insertMention(p)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-lavender/30 flex items-center gap-2 transition-colors">
                     <Initials name={p.name} size="xs" />

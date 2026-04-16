@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import useSWR from "swr";
 import Link from "next/link";
+import { useClickOutside, useEscapeKey } from "@/hooks/use-click-outside";
 import Topbar from "@/components/topbar";
 import Modal from "@/components/modal";
 import EmptyState from "@/components/empty-state";
@@ -32,6 +33,11 @@ export default function ProjectsPage() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [collapsedDepts, setCollapsedDepts] = useState<Set<string>>(new Set());
   const [movingProjectId, setMovingProjectId] = useState<string | null>(null);
+  const moveDropdownRef = useRef<HTMLDivElement>(null);
+
+  const closeMoveDropdown = useCallback(() => setMovingProjectId(null), []);
+  useClickOutside(moveDropdownRef, closeMoveDropdown, !!movingProjectId);
+  useEscapeKey(closeMoveDropdown, !!movingProjectId);
 
   const { data: projects = [], mutate } = useSWR<Project[]>(`/api/projects?filter=${filter}`, fetcher);
   const { data: departments = [], mutate: mutateDepts } = useSWR<Department[]>("/api/departments", fetcher);
@@ -116,7 +122,7 @@ export default function ProjectsPage() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
             </button>
             {isMoving && (
-              <div className="absolute right-0 top-8 bg-white border border-platinum rounded-lg shadow-lg py-1 z-50 min-w-[160px]">
+              <div ref={moveDropdownRef} className="absolute right-0 top-8 bg-white border border-platinum rounded-lg shadow-lg py-1 z-50 min-w-[160px]">
                 <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-brand-gray font-medium">Move to</p>
                 {departments.map((d) => (
                   <button

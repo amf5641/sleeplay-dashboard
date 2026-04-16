@@ -7,6 +7,7 @@ import ConfirmDialog from "@/components/confirm-dialog";
 import { useRole } from "@/hooks/use-role";
 import TimelineView from "@/components/timeline-view";
 import { fetcher } from "@/lib/utils";
+import { useClickOutside, useEscapeKey } from "@/hooks/use-click-outside";
 import type { Person, AppUser, Project, Department, Task, TaskComment, TaskCustomFieldValue } from "@/components/project/types";
 import { PROJECT_COLORS, STATUS_OPTIONS, statusColors, statusDot, isUrl, toHref, BUILTIN_COLUMNS, priorityColor } from "@/components/project/types";
 import Initials from "@/components/project/initials";
@@ -76,6 +77,18 @@ export default function ProjectDetailPage() {
   const [boardDragId, setBoardDragId] = useState<string | null>(null);
   const [boardDragOver, setBoardDragOver] = useState<string | null>(null);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
+
+  const closeColorPicker = useCallback(() => setColorPickerOpen(false), []);
+  const closeColumnsDropdown = useCallback(() => setColumnsDropdown(false), []);
+  const closeHeaderMenu = useCallback(() => setHeaderMenuOpen(false), []);
+  const closeSelectedTask = useCallback(() => setSelectedTask(null), []);
+
+  useClickOutside(colorPickerRef, closeColorPicker, colorPickerOpen);
+  useEscapeKey(closeColorPicker, colorPickerOpen, true);
+  useEscapeKey(closeColumnsDropdown, columnsDropdown, true);
+  useEscapeKey(closeHeaderMenu, headerMenuOpen, true);
+  useEscapeKey(closeSelectedTask, !!selectedTask && !colorPickerOpen && !columnsDropdown && !headerMenuOpen);
 
   useEffect(() => {
     if (project && !sectionsInitialized) {
@@ -389,7 +402,7 @@ export default function ProjectDetailPage() {
                   title={project.departmentId ? "Color inherited from department" : "Change project color"}
                 />
                 {colorPickerOpen && !project.departmentId && (
-                  <div className="absolute top-8 left-0 bg-white border border-platinum rounded-lg shadow-lg p-3 z-50">
+                  <div ref={colorPickerRef} className="absolute top-8 left-0 bg-white border border-platinum rounded-lg shadow-lg p-3 z-50">
                     <p className="text-[10px] uppercase tracking-wider text-brand-gray font-medium mb-2">Color</p>
                     <div className="grid grid-cols-5 gap-2">
                       {PROJECT_COLORS.map((c) => (
