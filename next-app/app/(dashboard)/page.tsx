@@ -114,7 +114,34 @@ export default function HomePage() {
   const greeting = getGreeting();
   const name = getFirstName(session?.user?.email);
 
-  if (!mounted) return null;
+  if (!mounted) return (
+    <>
+      <Topbar title="Home" />
+      <div className="flex-1 overflow-y-auto p-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-8">
+            <div className="h-4 w-48 bg-platinum rounded animate-pulse mx-auto mb-2" />
+            <div className="h-8 w-72 bg-platinum rounded animate-pulse mx-auto" />
+          </div>
+          <div className="grid grid-cols-4 gap-4 mb-8">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-24 bg-platinum rounded-xl animate-pulse" />
+            ))}
+          </div>
+          <div className="flex gap-8">
+            <div className="w-80 flex-shrink-0 space-y-4">
+              <div className="h-48 bg-platinum rounded-xl animate-pulse" />
+              <div className="h-48 bg-platinum rounded-xl animate-pulse" />
+            </div>
+            <div className="flex-1 space-y-4">
+              <div className="h-32 bg-platinum rounded-xl animate-pulse" />
+              <div className="h-64 bg-platinum rounded-xl animate-pulse" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 
   const today = getToday();
   const endOfWeek = getEndOfWeek();

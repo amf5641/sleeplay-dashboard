@@ -120,7 +120,15 @@ export default function PtoPage() {
   const days = halfDay ? rawDays - 0.5 : rawDays;
 
   const createRequest = async () => {
-    if (!form.personId || !form.startDate || !form.endDate || days <= 0) return;
+    if (!form.personId || !form.startDate || !form.endDate) {
+      toast("Please fill in all required fields", "error");
+      return;
+    }
+    if (new Date(form.endDate) < new Date(form.startDate)) {
+      toast("End date must be after start date", "error");
+      return;
+    }
+    if (days <= 0) return;
     setSaving(true);
     const { error } = await apiFetch("/api/pto", {
       method: "POST",

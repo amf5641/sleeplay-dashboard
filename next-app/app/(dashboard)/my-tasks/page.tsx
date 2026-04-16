@@ -6,15 +6,7 @@ import Topbar from "@/components/topbar";
 import EmptyState from "@/components/empty-state";
 import { fetcher, apiFetch } from "@/lib/utils";
 import { useToast } from "@/components/toast";
-
-const STATUS_OPTIONS = ["On Track", "Slightly Off", "Off Track", "On Hold", "Done"] as const;
-const statusColors: Record<string, string> = {
-  "On Track": "bg-emerald-100 text-emerald-700",
-  "Slightly Off": "bg-amber-100 text-amber-700",
-  "Off Track": "bg-red-100 text-red-700",
-  "On Hold": "bg-gray-100 text-gray-600",
-  "Done": "bg-blue-100 text-blue-700",
-};
+import { STATUS_OPTIONS, statusColors } from "@/components/project/types";
 
 interface Person { id: string; name: string }
 interface MyTask {
@@ -142,7 +134,7 @@ export default function MyTasksPage() {
                             <input type="checkbox" checked={task.completed} onChange={() => toggleTask(task.id, task.completed)} className="rounded" />
                           </td>
                           <td className="px-3 py-2">
-                            <Link href={`/projects/${task.project.id}`} className={`text-sm hover:text-royal-purple ${task.completed ? "line-through text-brand-gray" : ""}`}>
+                            <Link href={`/projects/${task.project.id}?task=${task.id}`} className={`text-sm hover:text-royal-purple ${task.completed ? "line-through text-brand-gray" : ""}`}>
                               {task.title}
                             </Link>
                           </td>
@@ -223,7 +215,7 @@ export default function MyTasksPage() {
                             {dayTasks.slice(0, 4).map((t) => (
                               <Link
                                 key={t.id}
-                                href={`/projects/${t.project.id}`}
+                                href={`/projects/${t.project.id}?task=${t.id}`}
                                 className={`block text-[10px] px-1.5 py-0.5 rounded truncate ${t.completed ? "bg-gray-100 text-gray-400 line-through" : priorityCalColor[t.priority] || "bg-gray-200 text-gray-700"}`}
                                 title={`${t.title} (${t.project.name})`}
                               >
