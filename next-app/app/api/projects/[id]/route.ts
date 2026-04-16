@@ -67,6 +67,14 @@ export async function PUT(
     if (body[field] !== undefined) data[field] = body[field];
   }
 
+  // When department changes, inherit the department's color
+  if (body.departmentId !== undefined) {
+    if (body.departmentId) {
+      const dept = await prisma.department.findUnique({ where: { id: body.departmentId } });
+      if (dept) data.color = dept.color;
+    }
+  }
+
   const project = await prisma.project.update({
     where: { id },
     data,

@@ -41,6 +41,35 @@ export async function POST(request: NextRequest) {
   return Response.json(department, { status: 201 });
 }
 
+export async function PUT(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const user = session.user as { role?: string };
+  if (user.role !== "admin" && user.role !== "manager") {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await request.json();
+  if (!body.id) return Response.json({ error: "ID required" }, { status: 400 });
+
+  const data: Record<string, unknown> = {};
+  if (body.name !== undefined) data.name = body.name.trim();
+  if (body.color !== undefined) data.color = body.color;
+
+  const department = await prisma.department.update({ where: { id: body.id }, data });
+
+  // Cascade color to all projects in this department
+  if (body.color !== undefined) {
+    await prisma.project.updateMany({
+      where: { departmentId: body.id },
+      data: { color: body.color },
+    });
+  }
+
+  return Response.json(department);
+}
+
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });

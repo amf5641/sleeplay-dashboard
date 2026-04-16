@@ -47,13 +47,20 @@ export async function POST(request: NextRequest) {
   const sessionUser = session.user as { email?: string };
   const body = await request.json();
 
+  // If department selected, inherit its color
+  let color = body.color ?? "#664FA6";
+  if (body.departmentId) {
+    const dept = await prisma.department.findUnique({ where: { id: body.departmentId } });
+    if (dept) color = dept.color;
+  }
+
   const project = await prisma.project.create({
     data: {
       name: body.name,
       description: body.description ?? "",
       status: body.status ?? "On Track",
       notes: body.notes ?? "",
-      color: body.color ?? "#664FA6",
+      color,
       departmentId: body.departmentId || null,
     },
   });

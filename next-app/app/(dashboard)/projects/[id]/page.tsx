@@ -501,12 +501,12 @@ export default function ProjectDetailPage() {
               </button>
               <div className="relative">
                 <button
-                  onClick={() => canEdit && setColorPickerOpen(!colorPickerOpen)}
-                  className="w-6 h-6 rounded flex-shrink-0 hover:ring-2 hover:ring-offset-1 hover:ring-brand-gray/30 transition-all"
+                  onClick={() => canEdit && !project.departmentId && setColorPickerOpen(!colorPickerOpen)}
+                  className={`w-6 h-6 rounded flex-shrink-0 transition-all ${project.departmentId ? "cursor-default" : "hover:ring-2 hover:ring-offset-1 hover:ring-brand-gray/30"}`}
                   style={{ backgroundColor: project.color || "#664FA6" }}
-                  title="Change project color"
+                  title={project.departmentId ? "Color inherited from department" : "Change project color"}
                 />
-                {colorPickerOpen && (
+                {colorPickerOpen && !project.departmentId && (
                   <div className="absolute top-8 left-0 bg-white border border-platinum rounded-lg shadow-lg p-3 z-50">
                     <p className="text-[10px] uppercase tracking-wider text-brand-gray font-medium mb-2">Color</p>
                     <div className="grid grid-cols-5 gap-2">
@@ -540,8 +540,10 @@ export default function ProjectDetailPage() {
                   value={project.departmentId || ""}
                   onChange={(e) => {
                     const deptId = e.target.value || null;
+                    const dept = departments.find((d) => d.id === deptId);
+                    const newColor = dept ? dept.color : project.color;
                     fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ departmentId: deptId }) });
-                    mutate((prev: Project | undefined) => prev ? { ...prev, departmentId: deptId } : prev, false);
+                    mutate((prev: Project | undefined) => prev ? { ...prev, departmentId: deptId, color: newColor } : prev, false);
                   }}
                   disabled={!canEdit}
                   className="text-xs text-brand-gray bg-white border border-platinum rounded-full px-2.5 py-0.5 focus:outline-none focus:border-royal-purple cursor-pointer disabled:cursor-default disabled:opacity-60"
