@@ -22,7 +22,7 @@ export default function ProjectsPage() {
   const { canEdit } = useRole();
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const [view, setView] = useState<"grid" | "list">("list");
   const [modalOpen, setModalOpen] = useState(false);
   const [deptModalOpen, setDeptModalOpen] = useState(false);
   const [form, setForm] = useState({ name: "", description: "", templateId: "", color: "#664FA6", departmentId: "" });
@@ -303,18 +303,18 @@ export default function ProjectsPage() {
           </div>
           <div className="flex gap-1 bg-white border border-platinum rounded overflow-hidden">
             <button
-              onClick={() => setView("grid")}
-              className={`px-3 py-1.5 text-sm ${view === "grid" ? "bg-midnight-blue text-white" : "text-brand-gray hover:bg-white-smoke"}`}
-              title="Grid view"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-            </button>
-            <button
               onClick={() => setView("list")}
               className={`px-3 py-1.5 text-sm ${view === "list" ? "bg-midnight-blue text-white" : "text-brand-gray hover:bg-white-smoke"}`}
               title="List view"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            <button
+              onClick={() => setView("grid")}
+              className={`px-3 py-1.5 text-sm ${view === "grid" ? "bg-midnight-blue text-white" : "text-brand-gray hover:bg-white-smoke"}`}
+              title="Grid view"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
             </button>
           </div>
         </div>
