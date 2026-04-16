@@ -2,6 +2,8 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
 import { prisma } from "./prisma";
+import { checkRateLimit, resetRateLimit } from "./rate-limit";
+import { headers } from "next/headers";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -13,15 +15,40 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        // Rate limiting by IP
+        const headersList = await headers();
+        const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+        const rateCheck = checkRateLimit(ip);
+        if (!rateCheck.allowed) {
+          throw new Error("Too many login attempts. Try again in 15 minutes.");
+        }
+
         const user = await prisma.user.findUnique({ where: { email: credentials.email } });
-        if (!user) return null;
+        if (!user) {
+          // Log failed attempt
+          logAuthEvent(null, credentials.email, "login_failed", ip, "User not found");
+          return null;
+        }
+
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!valid) return null;
+        if (!valid) {
+          logAuthEvent(user.id, credentials.email, "login_failed", ip, "Invalid password");
+          return null;
+        }
+
+        // Successful login — reset rate limit and log
+        resetRateLimit(ip);
+        logAuthEvent(user.id, credentials.email, "login_success", ip);
+
         return { id: user.id, email: user.email };
       },
     }),
   ],
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 8 * 60 * 60, // 8 hours — force re-login daily
+  },
   pages: { signIn: "/login" },
   callbacks: {
     async jwt({ token, user }) {
@@ -44,3 +71,17 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
+
+// Fire-and-forget auth event logging
+function logAuthEvent(userId: string | null, email: string, action: string, ip: string, detail?: string) {
+  prisma.activityEvent.create({
+    data: {
+      userId: userId || "system",
+      action,
+      detail: detail || "",
+      metadata: JSON.stringify({ email, ip, timestamp: new Date().toISOString() }),
+    },
+  }).catch(() => {
+    // Silently fail — don't block auth flow
+  });
+}

@@ -9,6 +9,9 @@ export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+  const sessionUser = session.user as { role?: string };
+  if (sessionUser.role !== "admin") return Response.json({ error: "Forbidden" }, { status: 403 });
+
   const body = await request.json();
 
   if (!body.email) {

@@ -216,6 +216,7 @@ export default function SettingsPage() {
           <>
             <p className="text-sm text-brand-gray mb-3">Set a new password for <span className="font-medium text-brand-black">{resetModal}</span></p>
             <input value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} placeholder="New password" type="text" className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple" autoFocus />
+            <p className="text-[11px] text-brand-gray mt-1.5">Min 8 chars, must include uppercase, lowercase, and a number</p>
             {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
             <div className="flex justify-end gap-3 mt-4">
               <button onClick={() => setResetModal(null)} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcrypt";
+import { validatePassword } from "@/lib/password";
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -15,6 +16,11 @@ export async function POST(request: NextRequest) {
 
   if (!body.email || !body.password) {
     return Response.json({ error: "Email and password required" }, { status: 400 });
+  }
+
+  const pwCheck = validatePassword(body.password);
+  if (!pwCheck.valid) {
+    return Response.json({ error: pwCheck.error }, { status: 400 });
   }
 
   const user = await prisma.user.findUnique({ where: { email: body.email } });
