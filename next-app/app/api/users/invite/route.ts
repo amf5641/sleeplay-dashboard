@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
     data: {
       email: body.email,
       passwordHash,
+      mustChangePassword: true,
     },
   });
 

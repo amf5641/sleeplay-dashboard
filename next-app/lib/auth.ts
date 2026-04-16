@@ -5,6 +5,9 @@ import { prisma } from "./prisma";
 import { checkRateLimit, resetRateLimit } from "./rate-limit";
 import { headers } from "next/headers";
 
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_MINUTES = 15;
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -26,18 +29,51 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({ where: { email: credentials.email } });
         if (!user) {
-          // Log failed attempt
           logAuthEvent(null, credentials.email, "login_failed", ip, "User not found");
           return null;
         }
 
+        // Check account lockout
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+          const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+          logAuthEvent(user.id, credentials.email, "login_blocked", ip, "Account locked");
+          throw new Error(`Account locked. Try again in ${minutesLeft} minutes.`);
+        }
+
+        // Clear expired lockout
+        if (user.lockedUntil && user.lockedUntil <= new Date()) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { failedAttempts: 0, lockedUntil: null },
+          });
+        }
+
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!valid) {
-          logAuthEvent(user.id, credentials.email, "login_failed", ip, "Invalid password");
+          const newAttempts = user.failedAttempts + 1;
+          const lockout = newAttempts >= MAX_FAILED_ATTEMPTS
+            ? new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000)
+            : null;
+
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { failedAttempts: newAttempts, lockedUntil: lockout },
+          });
+
+          logAuthEvent(user.id, credentials.email, "login_failed", ip, `Invalid password (attempt ${newAttempts}/${MAX_FAILED_ATTEMPTS})`);
+
+          if (lockout) {
+            throw new Error(`Account locked after ${MAX_FAILED_ATTEMPTS} failed attempts. Try again in ${LOCKOUT_MINUTES} minutes.`);
+          }
+
           return null;
         }
 
-        // Successful login — reset rate limit and log
+        // Successful login — reset lockout, rate limit, and log
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { failedAttempts: 0, lockedUntil: null },
+        });
         resetRateLimit(ip);
         logAuthEvent(user.id, credentials.email, "login_success", ip);
 
@@ -47,7 +83,7 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 8 * 60 * 60, // 8 hours — force re-login daily
+    maxAge: 8 * 60 * 60, // 8 hours
   },
   pages: { signIn: "/login" },
   callbacks: {
@@ -55,8 +91,12 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.email = user.email;
         token.id = user.id;
-        const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { role: true } });
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { role: true, mustChangePassword: true },
+        });
         token.role = dbUser?.role || "member";
+        token.mustChangePassword = dbUser?.mustChangePassword || false;
       }
       return token;
     },
@@ -65,6 +105,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string;
         (session.user as Record<string, unknown>).id = token.id;
         (session.user as Record<string, unknown>).role = token.role;
+        (session.user as Record<string, unknown>).mustChangePassword = token.mustChangePassword;
       }
       return session;
     },
@@ -72,7 +113,6 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 };
 
-// Fire-and-forget auth event logging
 function logAuthEvent(userId: string | null, email: string, action: string, ip: string, detail?: string) {
   prisma.activityEvent.create({
     data: {
@@ -81,7 +121,5 @@ function logAuthEvent(userId: string | null, email: string, action: string, ip: 
       detail: detail || "",
       metadata: JSON.stringify({ email, ip, timestamp: new Date().toISOString() }),
     },
-  }).catch(() => {
-    // Silently fail — don't block auth flow
-  });
+  }).catch(() => {});
 }
