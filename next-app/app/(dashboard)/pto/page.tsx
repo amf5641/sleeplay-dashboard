@@ -7,7 +7,7 @@ import Modal from "@/components/modal";
 import EmptyState from "@/components/empty-state";
 import { fetcher, apiFetch } from "@/lib/utils";
 import { useToast } from "@/components/toast";
-const ADMIN_EMAIL = "admin@sleeplay.com";
+import { useRole } from "@/hooks/use-role";
 
 interface Person {
   id: string;
@@ -78,7 +78,7 @@ function formatDate(iso: string) {
 
 export default function PtoPage() {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.email === ADMIN_EMAIL;
+  const { isAdmin } = useRole();
   const userEmail = session?.user?.email;
 
   const [view, setView] = useState<"list" | "calendar">("list");

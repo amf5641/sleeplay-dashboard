@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -44,11 +45,17 @@ export default function Sidebar() {
   const { data: notifications = [] } = useSWR<Notification[]>("/api/notifications", fetcher, { refreshInterval: 30000 });
   const { data: projects = [] } = useSWR<SidebarProject[]>("/api/projects", fetcher);
   const { data: departments = [] } = useSWR<SidebarDepartment[]>("/api/departments", fetcher);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  return (
-    <aside className="w-60 bg-ultra-violet text-white flex flex-col h-screen sticky top-0 shrink-0">
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  const sidebarContent = (
+    <>
       <Link href="/" className="block px-5 py-5 border-b border-white/10">
         <Image src="/sleeplay-logo.svg" alt="Sleeplay" width={120} height={28} priority />
       </Link>
@@ -143,6 +150,45 @@ export default function Sidebar() {
           Log out
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="fixed top-4 left-4 z-50 p-2 bg-ultra-violet text-white rounded-lg shadow-lg md:hidden"
+        aria-label="Open menu"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-60 bg-ultra-violet text-white flex-col h-screen sticky top-0 shrink-0">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile sidebar overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute left-0 top-0 w-64 bg-ultra-violet text-white flex flex-col h-full animate-slide-in-left">
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="absolute top-4 right-4 text-white/60 hover:text-white"
+              aria-label="Close menu"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            {sidebarContent}
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

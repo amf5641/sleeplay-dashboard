@@ -45,6 +45,11 @@ export default function NotificationsPage() {
     mutate();
   };
 
+  const markOneRead = async (id: string) => {
+    await apiFetch(`/api/notifications/${id}`, { method: "PUT" });
+    mutate();
+  };
+
   return (
     <>
       <Topbar
@@ -69,7 +74,7 @@ export default function NotificationsPage() {
             {notifications.map((n) => (
               <div
                 key={n.id}
-                className={`bg-white rounded-lg p-4 border transition-colors ${n.read ? "border-platinum/50" : "border-royal-purple/30 bg-lavender/10"}`}
+                className={`bg-white rounded-lg p-4 border transition-colors ${n.read ? "border-platinum/50" : "border-l-[3px] border-l-royal-purple border-royal-purple/30 bg-lavender/10"}`}
               >
                 <div className="flex items-start gap-3">
                   <span className="text-lg mt-0.5">{typeIcons[n.type] || "🔔"}</span>
@@ -84,6 +89,7 @@ export default function NotificationsPage() {
                     {n.linkUrl && (
                       <Link
                         href={n.linkUrl}
+                        onClick={() => { if (!n.read) markOneRead(n.id); }}
                         className="inline-block text-xs text-royal-purple hover:text-midnight-blue mt-1.5"
                       >
                         {n.type === "task_assigned" ? "View task" : "View project"} &rarr;

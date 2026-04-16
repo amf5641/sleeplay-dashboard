@@ -2,18 +2,16 @@
 import { useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import Topbar from "@/components/topbar";
 import Modal from "@/components/modal";
 import { fetcher, apiFetch } from "@/lib/utils";
 import { useToast } from "@/components/toast";
-const ADMIN_EMAIL = "admin@sleeplay.com";
+import { useRole } from "@/hooks/use-role";
 
 interface Person { id: string; name: string; title: string; location: string; photo: string | null }
 
 export default function TeamPage() {
-  const { data: session } = useSession();
-  const isAdmin = session?.user?.email === ADMIN_EMAIL;
+  const { isAdmin } = useRole();
   const { toast } = useToast();
   const { data: people = [], mutate } = useSWR<Person[]>("/api/people", fetcher);
   const [modalOpen, setModalOpen] = useState(false);

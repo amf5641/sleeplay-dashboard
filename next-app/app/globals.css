@@ -52,6 +52,14 @@ h1, h2, h3, h4, h5, h6 {
   animation: slideInRight 200ms ease-out;
 }
 
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.animate-slide-in-left {
+  animation: slideInLeft 200ms ease-out;
+}
+
 @keyframes skeleton {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 0.7; }
