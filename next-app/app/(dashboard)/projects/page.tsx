@@ -9,15 +9,12 @@ import EmptyState from "@/components/empty-state";
 import { useRole } from "@/hooks/use-role";
 import { useToast } from "@/components/toast";
 import { fetcher, apiFetch } from "@/lib/utils";
+import ColorPicker from "@/components/color-picker";
+import { PROJECT_COLORS } from "@/components/project/types";
 
 interface Project { id: string; name: string; description: string; color: string; departmentId: string | null; department: { id: string; name: string; color: string } | null; tasks: { completed: boolean }[]; createdAt: string; updatedAt: string }
 interface Department { id: string; name: string; color: string; _count: { projects: number } }
 interface Template { id: string; name: string; description: string; sections: { name: string; _count: { tasks: number } }[] }
-
-const PROJECT_COLORS = [
-  "#E8384F", "#FD612C", "#FDBA31", "#7BC86C", "#4ECBC4",
-  "#4573D2", "#664FA6", "#EA4E9D", "#8DA3A6", "#1B0F3D",
-];
 
 export default function ProjectsPage() {
   const { canEdit } = useRole();
@@ -357,21 +354,7 @@ export default function ProjectsPage() {
           {!form.departmentId && (
             <div>
               <p className="text-xs text-brand-gray mb-1.5">Color</p>
-              <div className="flex gap-2 flex-wrap">
-                {PROJECT_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setForm({ ...form, color: c })}
-                    className="w-9 h-9 rounded-md hover:scale-105 transition-transform flex items-center justify-center"
-                    style={{ backgroundColor: c }}
-                  >
-                    {form.color === c && (
-                      <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                    )}
-                  </button>
-                ))}
-              </div>
+              <ColorPicker colors={PROJECT_COLORS} value={form.color} onChange={(c) => setForm({ ...form, color: c })} />
             </div>
           )}
           {form.departmentId && (
@@ -418,21 +401,7 @@ export default function ProjectsPage() {
           <input value={deptForm.name} onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })} placeholder="Department name" className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple" autoFocus />
           <div>
             <p className="text-xs text-brand-gray mb-1.5">Color</p>
-            <div className="flex gap-2 flex-wrap">
-              {PROJECT_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setDeptForm({ ...deptForm, color: c })}
-                  className="w-9 h-9 rounded-md hover:scale-105 transition-transform flex items-center justify-center"
-                  style={{ backgroundColor: c }}
-                >
-                  {deptForm.color === c && (
-                    <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                  )}
-                </button>
-              ))}
-            </div>
+            <ColorPicker colors={PROJECT_COLORS} value={deptForm.color} onChange={(c) => setDeptForm({ ...deptForm, color: c })} />
           </div>
         </div>
         <div className="flex justify-end gap-3 mt-4">

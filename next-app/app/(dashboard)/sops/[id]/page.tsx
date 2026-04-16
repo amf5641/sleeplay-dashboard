@@ -6,6 +6,7 @@ import Topbar from "@/components/topbar";
 import LoomEmbed from "@/components/loom-embed";
 import ConfirmDialog from "@/components/confirm-dialog";
 import { useRole } from "@/hooks/use-role";
+import Breadcrumbs from "@/components/breadcrumbs";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -83,6 +84,7 @@ export default function SopDetailPage() {
   if (!editing) {
     return (
       <>
+        <Breadcrumbs items={[{ label: "SOPs", href: "/sops" }, { label: sop.title || "Untitled SOP" }]} />
         <Topbar
           title=""
           actions={
@@ -96,7 +98,6 @@ export default function SopDetailPage() {
                   Edit
                 </button>
               )}
-              <button onClick={() => router.push("/sops")} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">Back</button>
             </div>
           }
         />
@@ -151,6 +152,7 @@ export default function SopDetailPage() {
   // ── EDIT MODE ──
   return (
     <>
+      <Breadcrumbs items={[{ label: "SOPs", href: "/sops" }, { label: form.title || sop.title || "Untitled SOP" }]} />
       <Topbar
         title=""
         actions={
@@ -162,7 +164,6 @@ export default function SopDetailPage() {
             >
               Done
             </button>
-            <button onClick={() => router.push("/sops")} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">Back</button>
             <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 text-sm rounded bg-red-500 text-white hover:bg-red-600">Delete</button>
           </div>
         }

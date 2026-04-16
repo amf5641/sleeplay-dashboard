@@ -10,10 +10,12 @@ import { fetcher } from "@/lib/utils";
 import { useClickOutside, useEscapeKey } from "@/hooks/use-click-outside";
 import type { Person, AppUser, Project, Department, Task, TaskComment, TaskCustomFieldValue } from "@/components/project/types";
 import { PROJECT_COLORS, STATUS_OPTIONS, statusColors, statusDot, isUrl, toHref, BUILTIN_COLUMNS, priorityColor } from "@/components/project/types";
+import ColorPicker from "@/components/color-picker";
 import Initials from "@/components/project/initials";
 import TaskDetailPanel from "@/components/project/task-detail-panel";
 import BoardView from "@/components/project/board-view";
 import CalendarView from "@/components/project/calendar-view";
+import Breadcrumbs from "@/components/breadcrumbs";
 
 function LoadingSkeleton() {
   return (
@@ -78,6 +80,75 @@ export default function ProjectDetailPage() {
   const [boardDragOver, setBoardDragOver] = useState<string | null>(null);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const colorPickerRef = useRef<HTMLDivElement>(null);
+  const [sortField, setSortField] = useState<"title" | "status" | "priority" | "dueDate" | "assignee">("dueDate");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  const toggleSort = (field: typeof sortField) => {
+    if (sortField === field) setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortField(field); setSortDirection("asc"); }
+  };
+
+  const priorityRank: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const statusRank: Record<string, number> = { "Off Track": 0, "Slightly Off": 1, "On Track": 2, "On Hold": 3, "Done": 4 };
+
+  const sortTasks = useCallback((tasks: Task[]): Task[] => {
+    return [...tasks].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case "title":
+          cmp = a.title.localeCompare(b.title);
+          break;
+        case "status":
+          cmp = (statusRank[a.status] ?? 99) - (statusRank[b.status] ?? 99);
+          break;
+        case "priority":
+          cmp = (priorityRank[a.priority] ?? 99) - (priorityRank[b.priority] ?? 99);
+          break;
+        case "dueDate": {
+          const da = a.dueDate || "";
+          const db = b.dueDate || "";
+          if (!da && !db) cmp = 0;
+          else if (!da) cmp = 1;
+          else if (!db) cmp = -1;
+          else cmp = da.localeCompare(db);
+          break;
+        }
+        case "assignee": {
+          const na = a.collaborators[0]?.person.name || "";
+          const nb = b.collaborators[0]?.person.name || "";
+          cmp = na.localeCompare(nb);
+          break;
+        }
+      }
+      return sortDirection === "asc" ? cmp : -cmp;
+    });
+  }, [sortField, sortDirection]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const SortArrow = ({ field }: { field: typeof sortField }) => {
+    if (sortField !== field) return null;
+    return <span className="ml-0.5 text-[9px] text-royal-purple">{sortDirection === "asc" ? "\u25B2" : "\u25BC"}</span>;
+  };
+
+  const [pendingMutations, setPendingMutations] = useState(0);
+  const isDirty = pendingMutations > 0 || inlineAddTitle.trim().length > 0;
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
+  const trackMutation = useCallback(async <T,>(promise: Promise<T>): Promise<T> => {
+    setPendingMutations((n) => n + 1);
+    try {
+      return await promise;
+    } finally {
+      setPendingMutations((n) => n - 1);
+    }
+  }, []);
 
   const closeColorPicker = useCallback(() => setColorPickerOpen(false), []);
   const closeColumnsDropdown = useCallback(() => setColumnsDropdown(false), []);
@@ -203,7 +274,7 @@ export default function ProjectDetailPage() {
   const createTask = async () => {
     const notes = taskForm.section ? `[${taskForm.section}] ${taskForm.notes}`.trim() : taskForm.notes;
     const body = { ...taskForm, notes, projectId: id };
-    await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    await trackMutation(fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
     setTaskModal(false);
     mutate();
   };
@@ -219,12 +290,12 @@ export default function ProjectDetailPage() {
   };
 
   const updateTaskField = async (taskId: string, field: string, value: unknown) => {
-    await fetch(`/api/tasks/${taskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: value }) });
+    await trackMutation(fetch(`/api/tasks/${taskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: value }) }));
     mutate();
   };
 
   const updateTaskCollaborators = async (taskId: string, collaborators: string[]) => {
-    await fetch(`/api/tasks/${taskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ collaborators }) });
+    await trackMutation(fetch(`/api/tasks/${taskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ collaborators }) }));
     mutate();
   };
 
@@ -386,14 +457,13 @@ export default function ProjectDetailPage() {
 
   return (
     <>
+      {/* BREADCRUMBS */}
+      <Breadcrumbs items={[{ label: "Projects", href: "/projects" }, { label: project.name || "Untitled" }]} />
       {/* PROJECT HEADER */}
       <div className="bg-white border-b border-platinum sticky top-0 z-20">
         <div className="px-8 pt-5 pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0">
-              <button onClick={() => router.push("/projects")} className="text-brand-gray hover:text-brand-black transition-colors duration-150 flex-shrink-0" title="Back to projects">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-              </button>
               <div className="relative">
                 <button
                   onClick={() => canEdit && !project.departmentId && setColorPickerOpen(!colorPickerOpen)}
@@ -404,24 +474,15 @@ export default function ProjectDetailPage() {
                 {colorPickerOpen && !project.departmentId && (
                   <div ref={colorPickerRef} className="absolute top-8 left-0 bg-white border border-platinum rounded-lg shadow-lg p-3 z-50">
                     <p className="text-[10px] uppercase tracking-wider text-brand-gray font-medium mb-2">Color</p>
-                    <div className="grid grid-cols-5 gap-2">
-                      {PROJECT_COLORS.map((c) => (
-                        <button
-                          key={c}
-                          onClick={() => {
-                            fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ color: c }) });
-                            mutate((prev: Project | undefined) => prev ? { ...prev, color: c } : prev, false);
-                            setColorPickerOpen(false);
-                          }}
-                          className="w-9 h-9 rounded-md hover:scale-105 transition-transform flex items-center justify-center"
-                          style={{ backgroundColor: c }}
-                        >
-                          {(project.color || "#664FA6") === c && (
-                            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                          )}
-                        </button>
-                      ))}
-                    </div>
+                    <ColorPicker
+                      colors={PROJECT_COLORS}
+                      value={project.color || "#664FA6"}
+                      onChange={(c) => {
+                        fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ color: c }) });
+                        mutate((prev: Project | undefined) => prev ? { ...prev, color: c } : prev, false);
+                        setColorPickerOpen(false);
+                      }}
+                    />
                   </div>
                 )}
               </div>
@@ -568,12 +629,12 @@ export default function ProjectDetailPage() {
                   <thead className="sticky top-0 z-10 bg-white">
                     <tr className="text-left border-b border-platinum">
                       <th className="w-10 py-2 px-2 border-r border-platinum/40" />
-                      <th className="py-2 px-3 w-[320px] min-w-[240px] text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Task name</th>
+                      <th className="py-2 px-3 w-[320px] min-w-[240px] text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40 cursor-pointer select-none hover:text-brand-black transition-colors" onClick={() => toggleSort("title")}>Task name<SortArrow field="title" /></th>
                       {isColumnVisible("created") && <th className="py-2 px-3 w-28 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Created</th>}
-                      {isColumnVisible("dueDate") && <th className="py-2 px-3 w-32 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Due date</th>}
-                      {isColumnVisible("priority") && <th className="py-2 px-3 w-24 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Priority</th>}
-                      {isColumnVisible("status") && <th className="py-2 px-3 w-32 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Status</th>}
-                      {isColumnVisible("collaborators") && <th className="py-2 px-3 w-36 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Assignee</th>}
+                      {isColumnVisible("dueDate") && <th className="py-2 px-3 w-32 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40 cursor-pointer select-none hover:text-brand-black transition-colors" onClick={() => toggleSort("dueDate")}>Due date<SortArrow field="dueDate" /></th>}
+                      {isColumnVisible("priority") && <th className="py-2 px-3 w-24 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40 cursor-pointer select-none hover:text-brand-black transition-colors" onClick={() => toggleSort("priority")}>Priority<SortArrow field="priority" /></th>}
+                      {isColumnVisible("status") && <th className="py-2 px-3 w-32 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40 cursor-pointer select-none hover:text-brand-black transition-colors" onClick={() => toggleSort("status")}>Status<SortArrow field="status" /></th>}
+                      {isColumnVisible("collaborators") && <th className="py-2 px-3 w-36 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40 cursor-pointer select-none hover:text-brand-black transition-colors" onClick={() => toggleSort("assignee")}>Assignee<SortArrow field="assignee" /></th>}
                       {isColumnVisible("notes") && <th className="py-2 px-3 w-28 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">Notes</th>}
                       {(project.customFields || []).map((cf) => (
                         <th key={cf.id} className="py-2 px-3 w-36 text-[11px] uppercase tracking-wider text-brand-gray font-medium border-r border-platinum/40">
@@ -628,7 +689,7 @@ export default function ProjectDetailPage() {
                       const sectionKey = group.section || "__all__";
                       const isCollapsed = group.section ? collapsedSections.has(group.section) : false;
                       const doneTasks = group.tasks.filter((t) => t.completed).length;
-                      const filteredTasks = group.tasks.filter((t) => taskFilter === "all" ? true : taskFilter === "incomplete" ? !t.completed : t.completed);
+                      const filteredTasks = sortTasks(group.tasks.filter((t) => taskFilter === "all" ? true : taskFilter === "incomplete" ? !t.completed : t.completed));
                       return (
                         <React.Fragment key={sectionKey}>
                           {group.section && (
@@ -903,7 +964,7 @@ export default function ProjectDetailPage() {
 
       {/* MODALS */}
       <Modal open={taskModal} onClose={() => setTaskModal(false)} title="New Task">
-        <div className="space-y-3">
+        <div className="space-y-3" onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); createTask(); } }}>
           <input value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} placeholder="Task title" className="w-full px-3 py-2 border border-platinum rounded-lg text-sm focus:outline-none focus:border-royal-purple" autoFocus />
           {hasSections && (
             <div>

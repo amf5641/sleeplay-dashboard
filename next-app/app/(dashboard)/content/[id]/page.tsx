@@ -5,6 +5,7 @@ import useSWR from "swr";
 import Topbar from "@/components/topbar";
 import ConfirmDialog from "@/components/confirm-dialog";
 import { useRole } from "@/hooks/use-role";
+import Breadcrumbs from "@/components/breadcrumbs";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -66,6 +67,7 @@ export default function ContentDetailPage() {
   if (!editing) {
     return (
       <>
+        <Breadcrumbs items={[{ label: "Company Docs", href: "/content" }, { label: doc.title || "Untitled" }]} />
         <Topbar
           title=""
           actions={
@@ -79,7 +81,6 @@ export default function ContentDetailPage() {
                   Edit
                 </button>
               )}
-              <button onClick={() => router.push("/content")} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">Back</button>
             </div>
           }
         />
@@ -120,6 +121,7 @@ export default function ContentDetailPage() {
   // ── EDIT MODE ──
   return (
     <>
+      <Breadcrumbs items={[{ label: "Company Docs", href: "/content" }, { label: form.title || doc.title || "Untitled" }]} />
       <Topbar
         title=""
         actions={
@@ -131,7 +133,6 @@ export default function ContentDetailPage() {
             >
               Done
             </button>
-            <button onClick={() => router.push("/content")} className="px-3 py-1.5 text-sm rounded bg-platinum hover:bg-lavender">Back</button>
             <button onClick={() => setConfirmDelete(true)} className="px-3 py-1.5 text-sm rounded bg-red-500 text-white hover:bg-red-600">Delete</button>
           </div>
         }

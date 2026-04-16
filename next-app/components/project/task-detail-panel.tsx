@@ -391,7 +391,7 @@ export default function TaskDetailPanel({
                 const atMatch = e.target.value.match(/@(\w*)$/);
                 if (atMatch) { setShowMentions(true); setMentionFilter(atMatch[1]); } else { setShowMentions(false); }
               }}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); postComment(); } }}
+              onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); postComment(); } }}
               placeholder="Write a comment... (@mention people)"
               rows={2}
               className="w-full text-sm px-3 py-2 border border-platinum rounded-lg focus:outline-none focus:border-royal-purple resize-none bg-white"
