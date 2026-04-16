@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
+import { TOTP } from "otpauth";
 import { prisma } from "./prisma";
 import { checkRateLimit, resetRateLimit } from "./rate-limit";
 import { headers } from "next/headers";
@@ -15,6 +16,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        totpCode: { label: "2FA Code", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
@@ -69,7 +71,40 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Successful login — reset lockout, rate limit, and log
+        // 2FA check
+        if (user.totpEnabled && user.totpSecret) {
+          const code = credentials.totpCode?.trim();
+
+          if (!code) {
+            // Signal that 2FA is required (client catches this)
+            throw new Error("2FA_REQUIRED");
+          }
+
+          // Check recovery codes first
+          const recoveryCodes: string[] = JSON.parse(user.totpRecoveryCodes || "[]");
+          const recoveryIndex = recoveryCodes.findIndex((rc) => rc === code);
+
+          if (recoveryIndex >= 0) {
+            // Valid recovery code — consume it
+            recoveryCodes.splice(recoveryIndex, 1);
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { totpRecoveryCodes: JSON.stringify(recoveryCodes) },
+            });
+            logAuthEvent(user.id, credentials.email, "login_recovery_code", ip);
+          } else {
+            // Verify TOTP
+            const totp = new TOTP({ secret: user.totpSecret, algorithm: "SHA1", digits: 6, period: 30 });
+            const delta = totp.validate({ token: code, window: 1 });
+
+            if (delta === null) {
+              logAuthEvent(user.id, credentials.email, "login_failed_2fa", ip, "Invalid TOTP code");
+              throw new Error("Invalid 2FA code. Please try again.");
+            }
+          }
+        }
+
+        // Successful login
         await prisma.user.update({
           where: { id: user.id },
           data: { failedAttempts: 0, lockedUntil: null },
@@ -83,7 +118,7 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 8 * 60 * 60, // 8 hours
+    maxAge: 8 * 60 * 60,
   },
   pages: { signIn: "/login" },
   callbacks: {

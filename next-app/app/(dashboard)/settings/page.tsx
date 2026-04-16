@@ -32,6 +32,15 @@ export default function SettingsPage() {
   const [resetPassword, setResetPassword] = useState("");
   const [resetSuccess, setResetSuccess] = useState(false);
   const [error, setError] = useState("");
+  // 2FA state
+  const [totpSetup, setTotpSetup] = useState(false);
+  const [totpQr, setTotpQr] = useState("");
+  const [totpSecretDisplay, setTotpSecretDisplay] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [totpRecoveryCodes, setTotpRecoveryCodes] = useState<string[]>([]);
+  const [totpDisablePassword, setTotpDisablePassword] = useState("");
+  const [totpDisableModal, setTotpDisableModal] = useState(false);
+  const { data: totpStatus, mutate: mutateTotpStatus } = useSWR<{ enabled: boolean }>("/api/users/totp/status", fetcher);
 
   const addUser = async () => {
     setError("");
@@ -102,6 +111,56 @@ export default function SettingsPage() {
     navigator.clipboard.writeText(text);
   };
 
+  const startTotpSetup = async () => {
+    setError("");
+    const res = await fetch("/api/users/totp");
+    if (res.ok) {
+      const data = await res.json();
+      setTotpQr(data.qrCode);
+      setTotpSecretDisplay(data.secret);
+      setTotpSetup(true);
+      setTotpCode("");
+      setTotpRecoveryCodes([]);
+    } else {
+      const data = await res.json();
+      setError(data.error || "Failed to start 2FA setup");
+    }
+  };
+
+  const verifyTotpSetup = async () => {
+    setError("");
+    const res = await fetch("/api/users/totp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: totpCode }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setTotpRecoveryCodes(data.recoveryCodes);
+      mutateTotpStatus();
+    } else {
+      const data = await res.json();
+      setError(data.error || "Invalid code");
+    }
+  };
+
+  const disableTotp = async () => {
+    setError("");
+    const res = await fetch("/api/users/totp", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: totpDisablePassword }),
+    });
+    if (res.ok) {
+      setTotpDisableModal(false);
+      setTotpDisablePassword("");
+      mutateTotpStatus();
+    } else {
+      const data = await res.json();
+      setError(data.error || "Failed to disable 2FA");
+    }
+  };
+
   return (
     <>
       <Topbar
@@ -160,6 +219,92 @@ export default function SettingsPage() {
           </table>
         </div>
       </div>
+
+      {/* Security Section */}
+      <div className="px-6 pb-6">
+        <h2 className="text-sm font-semibold font-heading text-brand-black mb-3">Security</h2>
+        <div className="bg-white rounded-lg border border-platinum/50 p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-brand-black">Two-Factor Authentication (2FA)</p>
+              <p className="text-xs text-brand-gray mt-0.5">
+                {totpStatus?.enabled
+                  ? "Enabled — your account is protected with an authenticator app"
+                  : "Add an extra layer of security with an authenticator app"}
+              </p>
+            </div>
+            {totpStatus?.enabled ? (
+              <button onClick={() => { setTotpDisableModal(true); setTotpDisablePassword(""); setError(""); }} className="px-4 py-1.5 text-sm rounded border border-red-300 text-red-600 hover:bg-red-50 transition-colors">
+                Disable 2FA
+              </button>
+            ) : (
+              <button onClick={startTotpSetup} className="px-4 py-1.5 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue transition-colors">
+                Enable 2FA
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 2FA Setup Modal */}
+      <Modal open={totpSetup} onClose={() => { setTotpSetup(false); setTotpRecoveryCodes([]); }} title={totpRecoveryCodes.length > 0 ? "Save Recovery Codes" : "Set Up Two-Factor Authentication"}>
+        {totpRecoveryCodes.length > 0 ? (
+          <div>
+            <p className="text-sm text-emerald-600 font-medium mb-2">2FA is now enabled!</p>
+            <p className="text-sm text-brand-gray mb-3">Save these recovery codes in a safe place. Each code can only be used once.</p>
+            <div className="bg-white-smoke rounded-lg p-4 font-mono text-sm grid grid-cols-2 gap-2 mb-4">
+              {totpRecoveryCodes.map((code, i) => (
+                <div key={i} className="text-brand-black">{code}</div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => copyToClipboard(totpRecoveryCodes.join("\n"))} className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue">Copy Codes</button>
+              <button onClick={() => { setTotpSetup(false); setTotpRecoveryCodes([]); }} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Done</button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-brand-gray">Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)</p>
+            {totpQr && (
+              <div className="flex justify-center">
+                <img src={totpQr} alt="2FA QR Code" className="w-48 h-48" />
+              </div>
+            )}
+            <div>
+              <p className="text-[11px] text-brand-gray mb-1">Or enter this key manually:</p>
+              <div className="bg-white-smoke rounded px-3 py-2 font-mono text-xs text-brand-black break-all select-all">{totpSecretDisplay}</div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-brand-black block mb-1">Enter the 6-digit code to verify</label>
+              <input
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
+                maxLength={6}
+                inputMode="numeric"
+                placeholder="000000"
+                className="w-full px-3 py-2 border border-platinum rounded text-center text-lg font-mono tracking-widest focus:outline-none focus:border-royal-purple"
+                autoFocus
+              />
+            </div>
+            {error && <p className="text-sm text-red-500">{error}</p>}
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setTotpSetup(false)} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
+              <button onClick={verifyTotpSetup} disabled={totpCode.length !== 6} className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue disabled:opacity-50">Verify & Enable</button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Disable 2FA Modal */}
+      <Modal open={totpDisableModal} onClose={() => setTotpDisableModal(false)} title="Disable Two-Factor Authentication">
+        <p className="text-sm text-brand-gray mb-3">Enter your password to confirm disabling 2FA.</p>
+        <input value={totpDisablePassword} onChange={(e) => setTotpDisablePassword(e.target.value)} type="password" placeholder="Your password" className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple" autoFocus />
+        {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+        <div className="flex justify-end gap-3 mt-4">
+          <button onClick={() => setTotpDisableModal(false)} className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender">Cancel</button>
+          <button onClick={disableTotp} className="px-4 py-2 text-sm rounded bg-red-500 text-white hover:bg-red-600">Disable 2FA</button>
+        </div>
+      </Modal>
 
       <Modal open={addModal} onClose={() => setAddModal(false)} title="Add User">
         <div className="space-y-3">
