@@ -10,6 +10,7 @@ export interface TaskBlock { id: string; task: { id: string; title: string; comp
 export interface Subtask {
   id: string; title: string; description: string; dueDate: string | null; priority: string; status: string; notes: string; completed: boolean; createdAt: string;
   repeatFreq: string | null; repeatDay: number | null;
+  createdBy?: { id: string; email: string } | null;
   collaborators: { person: Person }[];
   customFieldValues: TaskCustomFieldValue[];
   attachments: TaskAttachment[];
@@ -21,7 +22,7 @@ export interface Task extends Subtask {
   subtasks: Subtask[];
 }
 export interface Department { id: string; name: string; color: string }
-export interface Project { id: string; name: string; description: string; status: string; notes: string; color: string; departmentId: string | null; sectionOrder: string; columnConfig: string; tasks: Task[]; members: ProjectMember[]; customFields: CustomField[] }
+export interface Project { id: string; name: string; description: string; status: string; notes: string; color: string; departmentId: string | null; sectionOrder: string; columnConfig: string; createdAt: string; createdBy?: { id: string; email: string } | null; tasks: Task[]; members: ProjectMember[]; customFields: CustomField[] }
 
 export const PROJECT_COLORS = [
   "#E8384F", "#FD612C", "#FDBA31", "#7BC86C", "#4ECBC4",

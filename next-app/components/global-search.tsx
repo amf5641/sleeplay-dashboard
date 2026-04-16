@@ -39,6 +39,10 @@ export default function GlobalSearch() {
     }
   }, [open]);
 
+  useEffect(() => {
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, []);
+
   const search = useCallback((q: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (q.length < 2) { setResults(null); return; }

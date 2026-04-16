@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import Topbar from "@/components/topbar";
@@ -37,18 +37,19 @@ export default function ContentDetailPage() {
     setTimeout(() => setSaving(false), 500);
   }, [id]);
 
-  const timerRef = useCallback(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    return (updates: Partial<ContentDoc>) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => save(updates), 400);
-    };
-  }, [save])();
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => {
+    return () => { if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current); };
+  }, []);
+  const debouncedSave = useCallback((updates: Partial<ContentDoc>) => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => save(updates), 400);
+  }, [save]);
 
   const update = (key: string, value: string) => {
     const next = { ...form, [key]: value };
     setForm(next);
-    timerRef(next);
+    debouncedSave(next);
   };
 
   const exitEdit = () => {

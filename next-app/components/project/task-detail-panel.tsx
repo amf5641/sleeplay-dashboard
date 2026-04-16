@@ -1,10 +1,11 @@
 "use client";
-import React, { useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import type { Task, Project, Person, TaskComment, TaskCustomFieldValue } from "@/components/project/types";
 import { useClickOutside, useEscapeKey } from "@/hooks/use-click-outside";
 import { STATUS_OPTIONS, statusColors, isUrl, toHref } from "@/components/project/types";
 import Initials from "@/components/project/initials";
 import RichTextEditor from "@/components/project/rich-text-editor";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface TaskDetailPanelProps {
   task: Task;
@@ -82,6 +83,41 @@ export default function TaskDetailPanel({
   useClickOutside(mentionsRef, closeMentions, showMentions);
   useEscapeKey(closeMentions, showMentions, true);
 
+  const [panelWidth, setPanelWidth] = useState(440);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const startWidth = useRef(440);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging.current) return;
+    const delta = startX.current - e.clientX;
+    const newWidth = Math.min(800, Math.max(320, startWidth.current + delta));
+    setPanelWidth(newWidth);
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    isDragging.current = false;
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    isDragging.current = true;
+    startX.current = e.clientX;
+    startWidth.current = panelWidth;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, [panelWidth]);
+
   const today = new Date().toISOString().split("T")[0];
   const isOverdue = (d: string | null) => d && d < today;
 
@@ -91,7 +127,14 @@ export default function TaskDetailPanel({
   };
 
   return (
-    <div className="w-[440px] flex-shrink-0 overflow-y-auto bg-white border-l border-platinum animate-slide-in-right">
+    <div className="flex-shrink-0 overflow-y-auto bg-white border-l border-platinum animate-slide-in-right relative" style={{ width: panelWidth }}>
+      {/* Resize drag handle */}
+      <div
+        onMouseDown={handleDragStart}
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10 group hover:bg-royal-purple/20 transition-colors"
+      >
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-full bg-platinum group-hover:bg-royal-purple/40 transition-colors" />
+      </div>
       <div className="p-6">
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
@@ -377,7 +420,7 @@ export default function TaskDetailPanel({
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
-                  <div className="text-sm text-brand-black/80 pl-7" dangerouslySetInnerHTML={{ __html: renderCommentBody(c.body) }} />
+                  <div className="text-sm text-brand-black/80 pl-7" dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderCommentBody(c.body)) }} />
                 </div>
               ))}
             </div>
@@ -416,7 +459,10 @@ export default function TaskDetailPanel({
 
         {/* Footer */}
         <div className="flex items-center justify-between text-xs text-brand-gray/60 pt-4 border-t border-platinum/30">
-          <span>Created {new Date(activeTask.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+          <span>
+            Created {new Date(activeTask.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            {activeTask.createdBy && <> by {activeTask.createdBy.email.split("@")[0]}</>}
+          </span>
           <button onClick={() => onDelete(activeTask.id)} className="text-red-400 hover:text-red-600 transition-colors duration-150">Delete task</button>
         </div>
       </div>

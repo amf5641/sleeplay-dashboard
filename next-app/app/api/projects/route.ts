@@ -54,6 +54,11 @@ export async function POST(request: NextRequest) {
     if (dept) color = dept.color;
   }
 
+  // Resolve the creating user's ID
+  const creatorUser = sessionUser.email
+    ? await prisma.user.findUnique({ where: { email: sessionUser.email }, select: { id: true } })
+    : null;
+
   const project = await prisma.project.create({
     data: {
       name: body.name,
@@ -62,6 +67,7 @@ export async function POST(request: NextRequest) {
       notes: body.notes ?? "",
       color,
       departmentId: body.departmentId || null,
+      createdById: creatorUser?.id ?? null,
     },
   });
 

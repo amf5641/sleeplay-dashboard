@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useCallback } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 export default function RichTextEditor({ value, onChange, placeholder }: { value: string; onChange: (html: string) => void; placeholder?: string }) {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -89,7 +90,7 @@ export default function RichTextEditor({ value, onChange, placeholder }: { value
         contentEditable
         suppressContentEditableWarning
         onBlur={handleBlur}
-        dangerouslySetInnerHTML={{ __html: value }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(value) }}
         data-placeholder={placeholder}
         className="min-h-[120px] px-3 py-2 text-sm focus:outline-none rounded-b-lg [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-brand-gray/40"
       />

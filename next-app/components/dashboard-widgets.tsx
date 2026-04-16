@@ -24,7 +24,7 @@ export default function DashboardWidgets() {
 
   if (!data) {
     return (
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
         {[1, 2, 3].map((i) => (
           <div key={i} className="bg-white border border-platinum rounded-xl p-5 h-48 animate-pulse" />
         ))}
@@ -35,7 +35,7 @@ export default function DashboardWidgets() {
   const maxWorkload = Math.max(...data.teamWorkload.map((t) => t.count), 1);
 
   return (
-    <div className="grid grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
       {/* Project Progress */}
       <div className="bg-white border border-platinum rounded-xl p-5">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-brand-gray mb-4">Project Progress</h3>

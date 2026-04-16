@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { useFocusTrap } from "@/hooks/use-focus-trap";
 
 interface ModalProps {
   open: boolean;
@@ -10,6 +11,7 @@ interface ModalProps {
 
 export default function Modal({ open, onClose, title, children }: ModalProps) {
   const ref = useRef<HTMLDivElement>(null);
+  useFocusTrap(ref, open);
 
   useEffect(() => {
     if (!open) return;

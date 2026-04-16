@@ -123,7 +123,7 @@ export default function HomePage() {
             <div className="h-4 w-48 bg-platinum rounded animate-pulse mx-auto mb-2" />
             <div className="h-8 w-72 bg-platinum rounded animate-pulse mx-auto" />
           </div>
-          <div className="grid grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="h-24 bg-platinum rounded-xl animate-pulse" />
             ))}
@@ -170,9 +170,9 @@ export default function HomePage() {
           {/* Dashboard Widgets */}
           <DashboardWidgets />
 
-          <div className="flex gap-8">
+          <div className="flex flex-col md:flex-row gap-8">
             {/* Left: Tasks widget */}
-            <div className="w-80 flex-shrink-0 space-y-4">
+            <div className="w-full md:w-80 flex-shrink-0 space-y-4">
               {/* Overdue */}
               {overdue.length > 0 && (
                 <div className="bg-white rounded-xl shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-red-200 overflow-hidden">

@@ -24,6 +24,7 @@ export async function GET(
             include: {
               collaborators: { include: { person: true } },
               customFieldValues: true,
+              createdBy: { select: { id: true, email: true } },
             },
             orderBy: [{ completed: "asc" }, { createdAt: "asc" }],
           },
@@ -32,12 +33,14 @@ export async function GET(
           _count: { select: { comments: true } },
           dependsOn: { include: { blockedByTask: { select: { id: true, title: true, completed: true } } } },
           blocks: { include: { task: { select: { id: true, title: true, completed: true } } } },
+          createdBy: { select: { id: true, email: true } },
         },
         orderBy: [{ completed: "asc" }, { title: "asc" }],
       },
       members: { include: { user: { select: { id: true, email: true } } } },
       department: true,
       customFields: { orderBy: { position: "asc" } },
+      createdBy: { select: { id: true, email: true } },
     },
   });
 

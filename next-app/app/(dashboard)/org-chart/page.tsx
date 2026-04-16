@@ -88,8 +88,13 @@ export default function OrgChartPage() {
   const [dragging, setDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [animating, setAnimating] = useState(false);
+  const animTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    return () => { if (animTimerRef.current) clearTimeout(animTimerRef.current); };
+  }, []);
 
   const roots = people.filter((p) => !p.managerId);
 
@@ -179,7 +184,8 @@ export default function OrgChartPage() {
       x: centerX - scale * (centerX - prevPan.x),
       y: centerY - scale * (centerY - prevPan.y),
     }));
-    setTimeout(() => setAnimating(false), 300);
+    if (animTimerRef.current) clearTimeout(animTimerRef.current);
+    animTimerRef.current = setTimeout(() => setAnimating(false), 300);
   };
 
   const fitToView = () => {
@@ -202,7 +208,8 @@ export default function OrgChartPage() {
     setAnimating(true);
     setZoom(newZoom);
     setPan({ x: newPanX, y: newPanY });
-    setTimeout(() => setAnimating(false), 300);
+    if (animTimerRef.current) clearTimeout(animTimerRef.current);
+    animTimerRef.current = setTimeout(() => setAnimating(false), 300);
   };
 
   const onMouseDown = (e: React.MouseEvent) => {
@@ -235,7 +242,8 @@ export default function OrgChartPage() {
       }));
       return newZoom;
     });
-    setTimeout(() => setAnimating(false), 300);
+    if (animTimerRef.current) clearTimeout(animTimerRef.current);
+    animTimerRef.current = setTimeout(() => setAnimating(false), 300);
   };
 
   // Track if mouse moved during drag to avoid navigating on drag release

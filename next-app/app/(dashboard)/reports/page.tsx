@@ -349,12 +349,12 @@ export default function ReportsPage() {
 
           {loading ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[...Array(4)].map((_, i) => (
                   <div key={i} className="h-24 bg-platinum/40 rounded-xl animate-skeleton" />
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[...Array(4)].map((_, i) => (
                   <div key={i} className="h-64 bg-platinum/30 rounded-xl animate-skeleton" />
                 ))}
@@ -363,7 +363,7 @@ export default function ReportsPage() {
           ) : data ? (
             <>
               {/* Stat cards */}
-              <div className="grid grid-cols-4 gap-4 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <StatCard label="Total Tasks" value={data.overall.totalTasks} />
                 <StatCard label="Completion Rate" value={`${data.overall.completionRate}%`} color={data.overall.completionRate >= 70 ? "text-emerald-600" : data.overall.completionRate >= 40 ? "text-amber-600" : "text-red-600"} />
                 <StatCard
@@ -374,7 +374,7 @@ export default function ReportsPage() {
               </div>
 
               {/* Charts */}
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Completion by Project */}
                 <div className="bg-white rounded-xl shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50 p-5">
                   <h3 className="text-sm font-semibold font-heading text-brand-black mb-4">Completion Rate by Project</h3>

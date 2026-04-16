@@ -20,13 +20,20 @@ export function useToast() {
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const counterRef = useRef(0);
+  const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  useEffect(() => {
+    return () => { timersRef.current.forEach((t) => clearTimeout(t)); };
+  }, []);
 
   const toast = useCallback((message: string, type: Toast["type"] = "info") => {
     const id = `toast-${++counterRef.current}`;
     setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
+      timersRef.current.delete(timer);
     }, 4000);
+    timersRef.current.add(timer);
   }, []);
 
   const dismiss = useCallback((id: string) => {

@@ -24,6 +24,8 @@ model User {
   notifications      Notification[]
   comments           TaskComment[]
   activityEvents     ActivityEvent[] @relation("ActivityEvents")
+  createdProjects    Project[]       @relation("ProjectCreator")
+  createdTasks       Task[]          @relation("TaskCreator")
 }
 
 model Notification {
@@ -102,6 +104,8 @@ model Project {
   columnConfig String          @default("{}") // JSON: { hiddenColumns: string[] }
   departmentId String?
   department   Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdById  String?
+  createdBy    User?           @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
   tasks          Task[]
@@ -137,6 +141,8 @@ model Task {
   completed     Boolean            @default(false)
   repeatFreq    String?            // "daily", "weekly", "monthly", "yearly"
   repeatDay     Int?               // day of week (0-6) for weekly, day of month for monthly
+  createdById   String?
+  createdBy     User?              @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt     DateTime           @default(now())
   collaborators    TaskCollaborator[]
   customFieldValues TaskCustomFieldValue[]

@@ -491,6 +491,9 @@ export default function ProjectDetailPage() {
                 <span className={`w-1.5 h-1.5 rounded-full ${statusDot[project.status] || "bg-gray-400"}`} />
                 {project.status}
               </span>
+              {project.createdBy && (
+                <span className="text-xs text-brand-gray/60">Created by {project.createdBy.email.split("@")[0]}</span>
+              )}
               {departments.length > 0 && (
                 <select
                   value={project.departmentId || ""}

@@ -9,6 +9,12 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
 
+  // Resolve the creating user's ID
+  const sessionUser = session.user as { email?: string };
+  const creatorUser = sessionUser.email
+    ? await prisma.user.findUnique({ where: { email: sessionUser.email }, select: { id: true } })
+    : null;
+
   const task = await prisma.task.create({
     data: {
       projectId: body.projectId,
@@ -19,6 +25,7 @@ export async function POST(request: NextRequest) {
       priority: body.priority ?? "medium",
       status: body.status ?? "On Track",
       notes: body.notes ?? "",
+      createdById: creatorUser?.id ?? null,
       collaborators: body.collaborators?.length
         ? {
             create: body.collaborators.map((personId: string) => ({
