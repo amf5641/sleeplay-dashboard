@@ -29,6 +29,7 @@ export default function ProjectsPage() {
   const [deptForm, setDeptForm] = useState({ name: "", color: "#664FA6" });
   const [showTemplates, setShowTemplates] = useState(false);
   const [collapsedDepts, setCollapsedDepts] = useState<Set<string>>(new Set());
+  const [movingProjectId, setMovingProjectId] = useState<string | null>(null);
 
   const { data: projects = [], mutate } = useSWR<Project[]>(`/api/projects?filter=${filter}`, fetcher);
   const { data: departments = [], mutate: mutateDepts } = useSWR<Department[]>("/api/departments", fetcher);
@@ -93,27 +94,72 @@ export default function ProjectsPage() {
     mutate();
   };
 
+  const moveProject = async (projectId: string, departmentId: string | null) => {
+    await fetch(`/api/projects/${projectId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ departmentId }),
+    });
+    setMovingProjectId(null);
+    mutate();
+    mutateDepts();
+  };
+
   const renderProjectCard = (proj: Project) => {
     const total = proj.tasks.length;
     const done = proj.tasks.filter((t) => t.completed).length;
+    const isMoving = movingProjectId === proj.id;
     return (
-      <Link
-        key={proj.id}
-        href={`/projects/${proj.id}`}
-        className="bg-white rounded-lg p-5 shadow-[0_4px_34px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_34px_rgba(0,0,0,0.08)] transition-shadow border border-platinum/50"
-      >
-        <div className="flex items-center gap-2 mb-1">
-          <span className="w-4 h-4 rounded flex-shrink-0" style={{ backgroundColor: proj.color || "#664FA6" }} />
-          <h3 className="font-semibold font-heading text-brand-black truncate">{proj.name}</h3>
-        </div>
-        {proj.description && <p className="text-xs text-brand-gray mb-2 line-clamp-2">{proj.description}</p>}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-1.5 bg-platinum rounded-full overflow-hidden">
-            <div className="h-full bg-royal-purple rounded-full" style={{ width: total ? `${(done / total) * 100}%` : "0%" }} />
+      <div key={proj.id} className="bg-white rounded-lg p-5 shadow-[0_4px_34px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_34px_rgba(0,0,0,0.08)] transition-shadow border border-platinum/50 relative group/card">
+        {canEdit && departments.length > 0 && (
+          <div className="absolute top-2 right-2">
+            <button
+              onClick={(e) => { e.preventDefault(); setMovingProjectId(isMoving ? null : proj.id); }}
+              className="opacity-0 group-hover/card:opacity-100 p-1 rounded hover:bg-white-smoke text-brand-gray hover:text-brand-black transition-all"
+              title="Move to department"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+            </button>
+            {isMoving && (
+              <div className="absolute right-0 top-8 bg-white border border-platinum rounded-lg shadow-lg py-1 z-50 min-w-[160px]">
+                <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-brand-gray font-medium">Move to</p>
+                {departments.map((d) => (
+                  <button
+                    key={d.id}
+                    onClick={() => moveProject(proj.id, d.id)}
+                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-white-smoke flex items-center gap-2 transition-colors ${proj.departmentId === d.id ? "text-royal-purple font-medium" : "text-brand-black"}`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: d.color }} />
+                    {d.name}
+                    {proj.departmentId === d.id && <span className="text-xs text-brand-gray ml-auto">current</span>}
+                  </button>
+                ))}
+                <div className="border-t border-platinum my-1" />
+                <button
+                  onClick={() => moveProject(proj.id, null)}
+                  className={`w-full text-left px-3 py-1.5 text-sm hover:bg-white-smoke flex items-center gap-2 transition-colors ${!proj.departmentId ? "text-royal-purple font-medium" : "text-brand-gray"}`}
+                >
+                  <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0 bg-brand-gray/30" />
+                  No department
+                </button>
+              </div>
+            )}
           </div>
-          <span className="text-xs text-brand-gray">{done}/{total}</span>
-        </div>
-      </Link>
+        )}
+        <Link href={`/projects/${proj.id}`}>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-4 h-4 rounded flex-shrink-0" style={{ backgroundColor: proj.color || "#664FA6" }} />
+            <h3 className="font-semibold font-heading text-brand-black truncate">{proj.name}</h3>
+          </div>
+          {proj.description && <p className="text-xs text-brand-gray mb-2 line-clamp-2">{proj.description}</p>}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-platinum rounded-full overflow-hidden">
+              <div className="h-full bg-royal-purple rounded-full" style={{ width: total ? `${(done / total) * 100}%` : "0%" }} />
+            </div>
+            <span className="text-xs text-brand-gray">{done}/{total}</span>
+          </div>
+        </Link>
+      </div>
     );
   };
 
@@ -131,6 +177,22 @@ export default function ProjectsPage() {
               {proj.description && <div className="text-xs text-brand-gray mt-0.5 line-clamp-1">{proj.description}</div>}
             </div>
           </Link>
+        </td>
+        <td className="px-5 py-3">
+          {canEdit && departments.length > 0 ? (
+            <select
+              value={proj.departmentId || ""}
+              onChange={(e) => moveProject(proj.id, e.target.value || null)}
+              className="text-xs text-brand-gray bg-transparent border border-transparent hover:border-platinum rounded px-1 py-0.5 focus:outline-none focus:border-royal-purple cursor-pointer"
+            >
+              <option value="">None</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-xs text-brand-gray">{proj.department?.name || "—"}</span>
+          )}
         </td>
         <td className="px-5 py-3">
           <div className="flex items-center gap-2">
@@ -190,6 +252,7 @@ export default function ProjectsPage() {
               <thead>
                 <tr className="text-left text-xs text-brand-gray border-b border-platinum bg-white-smoke/50">
                   <th className="px-5 py-3 font-medium">Project</th>
+                  <th className="px-5 py-3 font-medium w-36">Department</th>
                   <th className="px-5 py-3 font-medium w-48">Progress</th>
                   <th className="px-5 py-3 font-medium w-24 text-center">Tasks</th>
                   <th className="px-5 py-3 font-medium w-32">Created</th>

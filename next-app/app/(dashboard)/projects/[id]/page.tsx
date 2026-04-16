@@ -112,7 +112,8 @@ interface Subtask {
 interface Task extends Subtask {
   subtasks: Subtask[];
 }
-interface Project { id: string; name: string; description: string; status: string; notes: string; color: string; sectionOrder: string; columnConfig: string; tasks: Task[]; members: ProjectMember[]; customFields: CustomField[] }
+interface Department { id: string; name: string; color: string }
+interface Project { id: string; name: string; description: string; status: string; notes: string; color: string; departmentId: string | null; sectionOrder: string; columnConfig: string; tasks: Task[]; members: ProjectMember[]; customFields: CustomField[] }
 
 const PROJECT_COLORS = [
   "#E8384F", "#FD612C", "#FDBA31", "#7BC86C", "#4ECBC4",
@@ -127,6 +128,7 @@ export default function ProjectDetailPage() {
   const { data: project, mutate } = useSWR<Project>(`/api/projects/${id}`, fetcher);
   const { data: people = [] } = useSWR<Person[]>("/api/people", fetcher);
   const { data: allUsers = [] } = useSWR<AppUser[]>("/api/users", fetcher);
+  const { data: departments = [] } = useSWR<Department[]>("/api/departments", fetcher);
 
   const [view, setView] = useState<"list" | "board" | "calendar" | "timeline">("list");
   const [taskFilter, setTaskFilter] = useState<"all" | "incomplete" | "complete">("incomplete");
@@ -533,6 +535,23 @@ export default function ProjectDetailPage() {
                 <span className={`w-1.5 h-1.5 rounded-full ${statusDot[project.status] || "bg-gray-400"}`} />
                 {project.status}
               </span>
+              {departments.length > 0 && (
+                <select
+                  value={project.departmentId || ""}
+                  onChange={(e) => {
+                    const deptId = e.target.value || null;
+                    fetch(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ departmentId: deptId }) });
+                    mutate((prev: Project | undefined) => prev ? { ...prev, departmentId: deptId } : prev, false);
+                  }}
+                  disabled={!canEdit}
+                  className="text-xs text-brand-gray bg-white border border-platinum rounded-full px-2.5 py-0.5 focus:outline-none focus:border-royal-purple cursor-pointer disabled:cursor-default disabled:opacity-60"
+                >
+                  <option value="">No department</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {/* Member avatars */}

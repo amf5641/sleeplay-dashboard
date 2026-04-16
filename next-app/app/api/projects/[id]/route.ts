@@ -36,6 +36,7 @@ export async function GET(
         orderBy: [{ completed: "asc" }, { title: "asc" }],
       },
       members: { include: { user: { select: { id: true, email: true } } } },
+      department: true,
       customFields: { orderBy: { position: "asc" } },
     },
   });
