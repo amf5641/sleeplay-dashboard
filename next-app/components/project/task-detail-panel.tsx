@@ -154,7 +154,7 @@ export default function TaskDetailPanel({
               )}
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white-smoke text-brand-gray hover:text-brand-black transition-colors duration-150">
+          <button onClick={onClose} aria-label="Close task panel" className="p-1 rounded-lg hover:bg-white-smoke text-brand-gray hover:text-brand-black transition-colors duration-150">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -198,7 +198,7 @@ export default function TaskDetailPanel({
                       <span key={c.person.id} className="inline-flex items-center gap-1.5 px-2 py-1 bg-white-smoke rounded-full text-xs">
                         <Initials name={c.person.name} size="xs" />
                         {c.person.name}
-                        <button onClick={() => updateTaskCollaborators(activeTask.id, activeTask.collaborators.filter((x) => x.person.id !== c.person.id).map((x) => x.person.id))} className="text-brand-gray hover:text-red-500 ml-0.5">&times;</button>
+                        <button onClick={() => updateTaskCollaborators(activeTask.id, activeTask.collaborators.filter((x) => x.person.id !== c.person.id).map((x) => x.person.id))} aria-label={`Remove ${c.person.name}`} className="text-brand-gray hover:text-red-500 ml-0.5">&times;</button>
                       </span>
                     ))
                   : <span className="text-xs text-brand-gray/50">No one assigned</span>}
@@ -268,7 +268,7 @@ export default function TaskDetailPanel({
                         {selected.map((s) => (
                           <span key={s} className="inline-flex items-center gap-1 px-2 py-0.5 bg-lavender rounded-full text-xs">
                             {s}
-                            <button onClick={() => updateTaskCustomFieldValue(activeTask.id, cf.id, JSON.stringify(selected.filter((x) => x !== s)))} className="text-brand-gray hover:text-red-500">&times;</button>
+                            <button onClick={() => updateTaskCustomFieldValue(activeTask.id, cf.id, JSON.stringify(selected.filter((x) => x !== s)))} aria-label={`Remove ${s}`} className="text-brand-gray hover:text-red-500">&times;</button>
                           </span>
                         ))}
                         <select value="" onChange={(e) => { if (e.target.value) updateTaskCustomFieldValue(activeTask.id, cf.id, JSON.stringify([...selected, e.target.value])); }} className="text-xs text-brand-gray border border-platinum rounded-lg px-1 py-0.5 bg-white">
@@ -298,7 +298,7 @@ export default function TaskDetailPanel({
                     <svg className="w-3.5 h-3.5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                   )}
                   <span className={`text-sm flex-1 ${dep.blockedByTask.completed ? "line-through text-brand-gray/50" : "text-brand-black"}`}>{dep.blockedByTask.title}</span>
-                  <button onClick={() => removeDependency(activeTask.id, dep.blockedByTask.id)} className="p-0.5 rounded hover:bg-red-50 text-brand-gray hover:text-red-500 transition-colors">
+                  <button onClick={() => removeDependency(activeTask.id, dep.blockedByTask.id)} aria-label="Remove blocker" className="p-0.5 rounded hover:bg-red-50 text-brand-gray hover:text-red-500 transition-colors">
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 </div>
@@ -362,7 +362,7 @@ export default function TaskDetailPanel({
                       </select>
                     </div>
                   </div>
-                  <button onClick={() => onDelete(sub.id)} className="opacity-0 group-hover/sub:opacity-100 p-1 rounded hover:bg-red-50 text-brand-gray hover:text-red-500 transition-all duration-150 flex-shrink-0">
+                  <button onClick={() => onDelete(sub.id)} aria-label="Delete subtask" className="opacity-0 group-hover/sub:opacity-100 p-1 rounded hover:bg-red-50 text-brand-gray hover:text-red-500 transition-all duration-150 flex-shrink-0">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 </div>
@@ -389,7 +389,7 @@ export default function TaskDetailPanel({
                 <div key={att.id} className="group/att flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-gray-50 transition-colors">
                   <svg className="w-4 h-4 text-brand-gray/50 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
                   <a href={att.url.startsWith("http") ? att.url : `https://${att.url}`} target="_blank" rel="noopener noreferrer" className="text-sm text-royal-purple hover:text-midnight-blue truncate flex-1">{att.name}</a>
-                  <button onClick={() => deleteAttachment(att.id)} className="opacity-0 group-hover/att:opacity-100 p-0.5 rounded hover:bg-red-50 text-brand-gray hover:text-red-500 transition-all flex-shrink-0">
+                  <button onClick={() => deleteAttachment(att.id)} aria-label={`Delete attachment ${att.name}`} className="opacity-0 group-hover/att:opacity-100 p-0.5 rounded hover:bg-red-50 text-brand-gray hover:text-red-500 transition-all flex-shrink-0">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 </div>
@@ -416,7 +416,7 @@ export default function TaskDetailPanel({
                     <Initials name={c.author.email} size="xs" />
                     <span className="text-xs font-medium text-brand-black">{c.author.email.split("@")[0]}</span>
                     <span className="text-[11px] text-brand-gray/50">{new Date(c.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                    <button onClick={() => deleteComment(c.id)} className="opacity-0 group-hover/comment:opacity-100 p-0.5 rounded hover:bg-red-50 text-brand-gray hover:text-red-500 ml-auto transition-all">
+                    <button onClick={() => deleteComment(c.id)} aria-label="Delete comment" className="opacity-0 group-hover/comment:opacity-100 p-0.5 rounded hover:bg-red-50 text-brand-gray hover:text-red-500 ml-auto transition-all">
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
