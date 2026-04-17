@@ -3,13 +3,16 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import Topbar from "@/components/topbar";
 import ConfirmDialog from "@/components/confirm-dialog";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const ADMIN_EMAIL = "admin@sleeplay.com";
 
-interface Person { id: string; name: string; email: string | null; title: string; location: string; photo: string | null; goals: string; hobbies: string; interests: string; responsibilities: string; skills: string; startDate: string | null; managerId: string | null }
+interface DirectReport { id: string; name: string; title: string; photo: string | null }
+interface PersonProject { id: string; name: string; color: string; status: string }
+interface Person { id: string; name: string; email: string | null; title: string; location: string; photo: string | null; goals: string; hobbies: string; interests: string; responsibilities: string; skills: string; startDate: string | null; slack: string; phone: string; managerId: string | null; reports: DirectReport[]; projects: PersonProject[] }
 interface PersonSummary { id: string; name: string }
 
 function resizeImage(file: File, maxSize: number): Promise<string> {
@@ -52,6 +55,8 @@ export default function TeamMemberPage() {
   const [responsibilities, setResponsibilities] = useState("");
   const [skills, setSkills] = useState("");
   const [startDate, setStartDate] = useState<string>("");
+  const [slack, setSlack] = useState("");
+  const [phone, setPhone] = useState("");
   const [managerId, setManagerId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -64,6 +69,8 @@ export default function TeamMemberPage() {
       setResponsibilities(person.responsibilities || "");
       setSkills(person.skills || "");
       setStartDate(person.startDate ? person.startDate.slice(0, 10) : "");
+      setSlack(person.slack || "");
+      setPhone(person.phone || "");
       setManagerId(person.managerId);
     }
   }, [person]);
@@ -72,7 +79,7 @@ export default function TeamMemberPage() {
     await fetch(`/api/people/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ goals, hobbies, interests, responsibilities, skills, startDate: startDate || null, managerId }),
+      body: JSON.stringify({ goals, hobbies, interests, responsibilities, skills, startDate: startDate || null, slack, phone, managerId }),
     });
     mutate();
   };
@@ -148,6 +155,85 @@ export default function TeamMemberPage() {
             <p className="text-sm">{allPeople.find((p) => p.id === managerId)?.name ?? "None"}</p>
           )}
         </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-brand-gray mb-2">Contact</label>
+          {canEdit ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-brand-gray mb-1">Slack handle</label>
+                <input
+                  type="text"
+                  value={slack}
+                  onChange={(e) => setSlack(e.target.value)}
+                  placeholder="@username"
+                  className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-brand-gray mb-1">Phone</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+1 555-123-4567"
+                  className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple bg-white"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-4 text-sm">
+              {person.email && <a href={`mailto:${person.email}`} className="text-royal-purple hover:underline">{person.email}</a>}
+              {slack && <span className="text-brand-black">Slack: {slack.startsWith("@") ? slack : `@${slack}`}</span>}
+              {phone && <a href={`tel:${phone}`} className="text-royal-purple hover:underline">{phone}</a>}
+              {!person.email && !slack && !phone && <span className="text-brand-gray">—</span>}
+            </div>
+          )}
+        </div>
+
+        {(person.reports?.length ?? 0) > 0 && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-brand-gray mb-2">Direct Reports ({person.reports.length})</label>
+            <div className="flex flex-wrap gap-2">
+              {person.reports.map((r) => (
+                <Link
+                  key={r.id}
+                  href={`/team/${r.id}`}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-platinum hover:border-royal-purple hover:bg-lavender transition-colors"
+                >
+                  {r.photo ? (
+                    <img src={r.photo} alt="" className="w-6 h-6 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-lavender flex items-center justify-center text-midnight-blue text-xs font-bold">
+                      {r.name.charAt(0)}
+                    </div>
+                  )}
+                  <span className="text-sm text-brand-black">{r.name}</span>
+                  {r.title && <span className="text-xs text-brand-gray">· {r.title}</span>}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {(person.projects?.length ?? 0) > 0 && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-brand-gray mb-2">Active Projects ({person.projects.length})</label>
+            <div className="flex flex-wrap gap-2">
+              {person.projects.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/projects/${p.id}`}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-platinum hover:border-royal-purple hover:bg-lavender transition-colors"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                  <span className="text-sm text-brand-black">{p.name}</span>
+                  <span className="text-xs text-brand-gray">· {p.status}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-brand-gray mb-2">Start Date</label>

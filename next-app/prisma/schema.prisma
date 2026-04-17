@@ -80,6 +80,8 @@ model Person {
   responsibilities   String             @default("")
   skills             String             @default("")
   startDate          DateTime?
+  slack              String             @default("")
+  phone              String             @default("")
   vacationAllowance  Int                @default(10)
   sickAllowance      Int                @default(5)
   taskCollaborations TaskCollaborator[]

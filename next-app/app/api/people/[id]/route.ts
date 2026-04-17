@@ -13,11 +13,31 @@ export async function GET(
 
   const person = await prisma.person.findUnique({
     where: { id },
-    include: { reports: true },
+    include: {
+      reports: { select: { id: true, name: true, title: true, photo: true } },
+      taskCollaborations: {
+        select: {
+          task: {
+            select: {
+              project: { select: { id: true, name: true, color: true, status: true } },
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!person) return Response.json({ error: "Not found" }, { status: 404 });
-  return Response.json(person);
+
+  // Flatten to distinct projects
+  const projectMap = new Map<string, { id: string; name: string; color: string; status: string }>();
+  for (const tc of person.taskCollaborations) {
+    const p = tc.task.project;
+    if (p && !projectMap.has(p.id)) projectMap.set(p.id, p);
+  }
+  const projects = Array.from(projectMap.values());
+
+  return Response.json({ ...person, projects });
 }
 
 export async function PUT(
@@ -43,8 +63,8 @@ export async function PUT(
 
   // Admins can edit all fields; non-admins can only edit personal fields
   const fields = isAdmin
-    ? ["name", "title", "location", "managerId", "photo", "goals", "hobbies", "interests", "responsibilities", "skills", "startDate"]
-    : ["photo", "goals", "hobbies", "interests", "responsibilities", "skills"];
+    ? ["name", "title", "location", "managerId", "photo", "goals", "hobbies", "interests", "responsibilities", "skills", "startDate", "slack", "phone"]
+    : ["photo", "goals", "hobbies", "interests", "responsibilities", "skills", "slack", "phone"];
 
   for (const field of fields) {
     if (body[field] !== undefined) data[field] = body[field];
