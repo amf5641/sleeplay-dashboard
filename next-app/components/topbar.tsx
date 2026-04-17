@@ -34,9 +34,9 @@ export default function Topbar({ title, count, searchValue, onSearch, searchPlac
   }, []);
 
   return (
-    <div className="flex items-center justify-between px-8 py-4 bg-white border-b border-platinum">
+    <div className="flex items-center justify-between px-8 py-4 bg-white dark:bg-[#1a1a2e] border-b border-platinum dark:border-[#3a3a55]">
       <div className="flex items-center gap-3">
-        <h1 className="text-xl font-bold font-heading text-brand-black">{title}</h1>
+        <h1 className="text-xl font-bold font-heading text-brand-black dark:text-[#F1F0EE]">{title}</h1>
         {count !== undefined && (
           <span className="text-xs bg-lavender text-midnight-blue px-2 py-0.5 rounded-full font-medium">{count}</span>
         )}
@@ -48,7 +48,7 @@ export default function Topbar({ title, count, searchValue, onSearch, searchPlac
             value={localValue}
             onChange={handleChange}
             placeholder={searchPlaceholder || "Search..."}
-            className="w-64 px-3 py-1.5 text-sm rounded border border-platinum bg-white-smoke focus:outline-none focus:border-royal-purple"
+            className="w-64 px-3 py-1.5 text-sm rounded border border-platinum dark:border-[#3a3a55] bg-white-smoke dark:bg-[#252540] text-brand-black dark:text-[#F1F0EE] focus:outline-none focus:border-royal-purple"
           />
         )}
         {actions}
