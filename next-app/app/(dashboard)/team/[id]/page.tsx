@@ -9,7 +9,7 @@ import ConfirmDialog from "@/components/confirm-dialog";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const ADMIN_EMAIL = "admin@sleeplay.com";
 
-interface Person { id: string; name: string; email: string | null; title: string; location: string; photo: string | null; goals: string; hobbies: string; interests: string; managerId: string | null }
+interface Person { id: string; name: string; email: string | null; title: string; location: string; photo: string | null; goals: string; hobbies: string; interests: string; responsibilities: string; skills: string; startDate: string | null; managerId: string | null }
 interface PersonSummary { id: string; name: string }
 
 function resizeImage(file: File, maxSize: number): Promise<string> {
@@ -49,6 +49,9 @@ export default function TeamMemberPage() {
   const [goals, setGoals] = useState("");
   const [hobbies, setHobbies] = useState("");
   const [interests, setInterests] = useState("");
+  const [responsibilities, setResponsibilities] = useState("");
+  const [skills, setSkills] = useState("");
+  const [startDate, setStartDate] = useState<string>("");
   const [managerId, setManagerId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -58,6 +61,9 @@ export default function TeamMemberPage() {
       setGoals(person.goals);
       setHobbies(person.hobbies);
       setInterests(person.interests);
+      setResponsibilities(person.responsibilities || "");
+      setSkills(person.skills || "");
+      setStartDate(person.startDate ? person.startDate.slice(0, 10) : "");
       setManagerId(person.managerId);
     }
   }, [person]);
@@ -66,7 +72,7 @@ export default function TeamMemberPage() {
     await fetch(`/api/people/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ goals, hobbies, interests, managerId }),
+      body: JSON.stringify({ goals, hobbies, interests, responsibilities, skills, startDate: startDate || null, managerId }),
     });
     mutate();
   };
@@ -143,9 +149,28 @@ export default function TeamMemberPage() {
           )}
         </div>
 
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-brand-gray mb-2">Start Date</label>
+          {isAdmin ? (
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple bg-white"
+            />
+          ) : (
+            <p className="text-sm text-brand-black">
+              {startDate ? new Date(startDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "—"}
+              {startDate && <span className="text-brand-gray ml-2">({Math.floor((Date.now() - new Date(startDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000) * 10) / 10} years)</span>}
+            </p>
+          )}
+        </div>
+
         {[
-          { label: "About Me", value: goals, set: setGoals },
-          { label: "Hobbies/Interests", value: hobbies, set: setHobbies },
+          { label: "Responsibilities", value: responsibilities, set: setResponsibilities, placeholder: "Day-to-day ownership areas, e.g.\n• Leads performance marketing\n• Owns Klaviyo lifecycle flows\n• Manages ad budget allocation" },
+          { label: "Key Skills", value: skills, set: setSkills, placeholder: "Areas of expertise — comma-separated or bulleted, e.g. Paid Ads, SEO, Analytics, Copywriting" },
+          { label: "About Me", value: goals, set: setGoals, placeholder: "" },
+          { label: "Hobbies/Interests", value: hobbies, set: setHobbies, placeholder: "" },
         ].map((field) => (
           <div key={field.label} className="mb-6">
             <label className="block text-sm font-medium text-brand-gray mb-2">{field.label}</label>
@@ -153,7 +178,8 @@ export default function TeamMemberPage() {
               <textarea
                 value={field.value}
                 onChange={(e) => field.set(e.target.value)}
-                rows={3}
+                rows={field.label === "Responsibilities" ? 5 : 3}
+                placeholder={field.placeholder}
                 className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y bg-white"
               />
             ) : (

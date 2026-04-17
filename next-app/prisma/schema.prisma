@@ -77,6 +77,9 @@ model Person {
   goals              String             @default("")
   hobbies            String             @default("")
   interests          String             @default("")
+  responsibilities   String             @default("")
+  skills             String             @default("")
+  startDate          DateTime?
   vacationAllowance  Int                @default(10)
   sickAllowance      Int                @default(5)
   taskCollaborations TaskCollaborator[]
