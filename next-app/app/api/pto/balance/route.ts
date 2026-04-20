@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { calculateAccrued } from "@/lib/pto-accrual";
 
 const ADMIN_EMAIL = "admin@sleeplay.com";
 
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
   const isAdmin = user.email === ADMIN_EMAIL || user.role === "admin";
   if (all === "true" && isAdmin) {
     const people = await prisma.person.findMany({
-      select: { id: true, name: true, title: true, photo: true, vacationAllowance: true, sickAllowance: true },
+      select: { id: true, name: true, title: true, photo: true, vacationAllowance: true, sickAllowance: true, startDate: true },
       orderBy: { name: "asc" },
     });
 
@@ -35,6 +36,8 @@ export async function GET(request: NextRequest) {
 
     const balances = people.map((p) => {
       const usage = usageMap[p.id] || { vacationUsed: 0, sickUsed: 0 };
+      const vacationAccrued = calculateAccrued(p.vacationAllowance, p.startDate);
+      const sickAccrued = calculateAccrued(p.sickAllowance, p.startDate);
       return {
         personId: p.id,
         name: p.name,
@@ -42,10 +45,12 @@ export async function GET(request: NextRequest) {
         photo: p.photo,
         vacationAllowance: p.vacationAllowance,
         sickAllowance: p.sickAllowance,
+        vacationAccrued,
+        sickAccrued,
         vacationUsed: usage.vacationUsed,
         sickUsed: usage.sickUsed,
-        vacationRemaining: p.vacationAllowance - usage.vacationUsed,
-        sickRemaining: p.sickAllowance - usage.sickUsed,
+        vacationRemaining: Math.round((vacationAccrued - usage.vacationUsed) * 100) / 100,
+        sickRemaining: Math.round((sickAccrued - usage.sickUsed) * 100) / 100,
       };
     });
 
@@ -57,7 +62,7 @@ export async function GET(request: NextRequest) {
 
   const person = await prisma.person.findUnique({
     where: { id: personId },
-    select: { vacationAllowance: true, sickAllowance: true },
+    select: { vacationAllowance: true, sickAllowance: true, startDate: true },
   });
 
   if (!person) return Response.json({ error: "Person not found" }, { status: 404 });
@@ -74,12 +79,17 @@ export async function GET(request: NextRequest) {
     else if (r.type === "sick") sickUsed += r.days;
   }
 
+  const vacationAccrued = calculateAccrued(person.vacationAllowance, person.startDate);
+  const sickAccrued = calculateAccrued(person.sickAllowance, person.startDate);
+
   return Response.json({
     vacationAllowance: person.vacationAllowance,
     sickAllowance: person.sickAllowance,
+    vacationAccrued,
+    sickAccrued,
     vacationUsed,
     sickUsed,
-    vacationRemaining: person.vacationAllowance - vacationUsed,
-    sickRemaining: person.sickAllowance - sickUsed,
+    vacationRemaining: Math.round((vacationAccrued - vacationUsed) * 100) / 100,
+    sickRemaining: Math.round((sickAccrued - sickUsed) * 100) / 100,
   });
 }
