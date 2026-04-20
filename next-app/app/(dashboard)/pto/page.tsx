@@ -167,6 +167,17 @@ export default function PtoPage() {
     mutateAllBalances();
   };
 
+  const updateAllowance = async (personId: string, field: "vacationAllowance" | "sickAllowance", value: number) => {
+    if (isNaN(value) || value < 0) { toast("Enter a valid number", "error"); return; }
+    const { error } = await apiFetch(`/api/people/${personId}`, {
+      method: "PUT",
+      body: JSON.stringify({ [field]: value }),
+    });
+    if (error) { toast(error, "error"); return; }
+    toast("Allowance updated", "success");
+    mutateAllBalances();
+  };
+
   return (
     <>
       <Topbar
@@ -260,8 +271,10 @@ export default function PtoPage() {
               <thead>
                 <tr className="border-b border-platinum text-left text-xs text-brand-gray">
                   <th className="px-5 py-2.5 font-medium">Employee</th>
+                  <th className="px-5 py-2.5 font-medium text-center">Vacation Allowance</th>
                   <th className="px-5 py-2.5 font-medium text-center">Vacation Used</th>
                   <th className="px-5 py-2.5 font-medium text-center">Vacation Left</th>
+                  <th className="px-5 py-2.5 font-medium text-center">Sick Allowance</th>
                   <th className="px-5 py-2.5 font-medium text-center">Sick Used</th>
                   <th className="px-5 py-2.5 font-medium text-center">Sick Left</th>
                 </tr>
@@ -285,8 +298,20 @@ export default function PtoPage() {
                       </div>
                     </td>
                     <td className="px-5 py-2.5 text-center">
+                      <input
+                        type="number"
+                        min="0"
+                        defaultValue={b.vacationAllowance}
+                        key={`vac-${b.personId}-${b.vacationAllowance}`}
+                        onBlur={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (val !== b.vacationAllowance) updateAllowance(b.personId, "vacationAllowance", val);
+                        }}
+                        className="w-16 text-center border border-platinum rounded px-2 py-1 text-sm focus:outline-none focus:border-royal-purple bg-white"
+                      />
+                    </td>
+                    <td className="px-5 py-2.5 text-center">
                       <span className="text-brand-black">{b.vacationUsed}</span>
-                      <span className="text-brand-gray"> / {b.vacationAllowance}</span>
                     </td>
                     <td className="px-5 py-2.5 text-center">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -296,8 +321,20 @@ export default function PtoPage() {
                       </span>
                     </td>
                     <td className="px-5 py-2.5 text-center">
+                      <input
+                        type="number"
+                        min="0"
+                        defaultValue={b.sickAllowance}
+                        key={`sick-${b.personId}-${b.sickAllowance}`}
+                        onBlur={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (val !== b.sickAllowance) updateAllowance(b.personId, "sickAllowance", val);
+                        }}
+                        className="w-16 text-center border border-platinum rounded px-2 py-1 text-sm focus:outline-none focus:border-royal-purple bg-white"
+                      />
+                    </td>
+                    <td className="px-5 py-2.5 text-center">
                       <span className="text-brand-black">{b.sickUsed}</span>
-                      <span className="text-brand-gray"> / {b.sickAllowance}</span>
                     </td>
                     <td className="px-5 py-2.5 text-center">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${

@@ -63,7 +63,7 @@ export async function PUT(
 
   // Admins can edit all fields; non-admins can only edit personal fields
   const fields = isAdmin
-    ? ["name", "title", "location", "managerId", "photo", "goals", "hobbies", "interests", "responsibilities", "skills", "startDate", "slack", "phone"]
+    ? ["name", "title", "location", "managerId", "photo", "goals", "hobbies", "interests", "responsibilities", "skills", "startDate", "slack", "phone", "vacationAllowance", "sickAllowance"]
     : ["photo", "goals", "hobbies", "interests", "responsibilities", "skills", "slack", "phone"];
 
   for (const field of fields) {
