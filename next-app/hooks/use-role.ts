@@ -4,10 +4,12 @@ import { useSession } from "next-auth/react";
 export function useRole() {
   const { data: session } = useSession();
   const role = ((session?.user as Record<string, unknown>)?.role as string) || "member";
+  const email = session?.user?.email;
+  const isAdmin = role === "admin" || email === "admin@sleeplay.com";
   return {
     role,
-    isAdmin: role === "admin",
+    isAdmin,
     isManager: role === "manager",
-    canEdit: role === "admin" || role === "manager",
+    canEdit: isAdmin || role === "manager",
   };
 }

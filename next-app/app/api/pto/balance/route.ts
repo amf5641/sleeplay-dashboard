@@ -13,7 +13,9 @@ export async function GET(request: NextRequest) {
   const all = request.nextUrl.searchParams.get("all");
 
   // Admin can request all balances
-  if (all === "true" && session.user?.email === ADMIN_EMAIL) {
+  const user = session.user as { email?: string; role?: string };
+  const isAdmin = user.email === ADMIN_EMAIL || user.role === "admin";
+  if (all === "true" && isAdmin) {
     const people = await prisma.person.findMany({
       select: { id: true, name: true, title: true, photo: true, vacationAllowance: true, sickAllowance: true },
       orderBy: { name: "asc" },
