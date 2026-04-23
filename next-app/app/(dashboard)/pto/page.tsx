@@ -301,10 +301,11 @@ export default function PtoPage() {
                       <input
                         type="number"
                         min="0"
+                        step="0.5"
                         defaultValue={b.vacationAllowance}
                         key={`vac-${b.personId}-${b.vacationAllowance}`}
                         onBlur={(e) => {
-                          const val = parseInt(e.target.value, 10);
+                          const val = parseFloat(e.target.value);
                           if (val !== b.vacationAllowance) updateAllowance(b.personId, "vacationAllowance", val);
                         }}
                         className="w-16 text-center border border-platinum rounded px-2 py-1 text-sm focus:outline-none focus:border-royal-purple bg-white"
@@ -324,10 +325,11 @@ export default function PtoPage() {
                       <input
                         type="number"
                         min="0"
+                        step="0.5"
                         defaultValue={b.sickAllowance}
                         key={`sick-${b.personId}-${b.sickAllowance}`}
                         onBlur={(e) => {
-                          const val = parseInt(e.target.value, 10);
+                          const val = parseFloat(e.target.value);
                           if (val !== b.sickAllowance) updateAllowance(b.personId, "sickAllowance", val);
                         }}
                         className="w-16 text-center border border-platinum rounded px-2 py-1 text-sm focus:outline-none focus:border-royal-purple bg-white"

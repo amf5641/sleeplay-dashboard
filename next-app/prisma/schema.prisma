@@ -82,8 +82,8 @@ model Person {
   startDate          DateTime?
   slack              String             @default("")
   phone              String             @default("")
-  vacationAllowance  Int                @default(10)
-  sickAllowance      Int                @default(5)
+  vacationAllowance  Float              @default(10)
+  sickAllowance      Float              @default(5)
   taskCollaborations TaskCollaborator[]
   ptoRequests        PtoRequest[]       @relation("PtoRequests")
   ptoReviews         PtoRequest[]       @relation("PtoReviews")
