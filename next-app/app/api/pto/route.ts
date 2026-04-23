@@ -6,7 +6,7 @@ import { sendEmail } from "@/lib/email";
 
 const ADMIN_EMAIL = "admin@sleeplay.com";
 const PTO_NOTIFY_EMAIL = process.env.PTO_NOTIFY_EMAIL ?? "aaron.fuhrman@sleeplay.com";
-const PORTAL_URL = process.env.PORTAL_URL ?? "https://sleeplay.portal.com";
+const PORTAL_URL = process.env.PORTAL_URL ?? "https://portal.sleeplay.com";
 
 function fmtDate(d: Date) {
   return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
