@@ -20,6 +20,7 @@ model User {
   totpEnabled        Boolean         @default(false)
   totpRecoveryCodes  String          @default("[]")
   createdAt          DateTime        @default(now())
+  lastLoginAt        DateTime?
   projects           ProjectMember[]
   notifications      Notification[]
   comments           TaskComment[]

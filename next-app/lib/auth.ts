@@ -107,7 +107,7 @@ export const authOptions: NextAuthOptions = {
         // Successful login
         await prisma.user.update({
           where: { id: user.id },
-          data: { failedAttempts: 0, lockedUntil: null },
+          data: { failedAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },
         });
         resetRateLimit(ip);
         logAuthEvent(user.id, credentials.email, "login_success", ip);

@@ -16,7 +16,21 @@ const roleColors: Record<string, string> = {
   member: "bg-blue-100 text-blue-700",
 };
 
-interface User { id: string; email: string; role: string; createdAt: string }
+interface User { id: string; email: string; role: string; createdAt: string; lastLoginAt: string | null }
+
+function formatLastLogin(iso: string | null): string {
+  if (!iso) return "Never";
+  const d = new Date(iso);
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  const hrs = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (hrs < 24) return `${hrs}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString();
+}
 
 export default function SettingsPage() {
   const { data: session } = useSession();
@@ -186,6 +200,7 @@ export default function SettingsPage() {
                 <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3 w-36">Role</th>
                 <th className="px-4 py-3">Joined</th>
+                <th className="px-4 py-3">Last Used</th>
                 {isAdmin && <th className="px-4 py-3 w-36"></th>}
               </tr>
             </thead>
@@ -209,6 +224,9 @@ export default function SettingsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm text-brand-gray">{new Date(u.createdAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm text-brand-gray" title={u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "Never logged in"}>
+                    {formatLastLogin(u.lastLoginAt)}
+                  </td>
                   {isAdmin && (
                     <td className="px-4 py-3">
                       <div className="flex gap-3">
