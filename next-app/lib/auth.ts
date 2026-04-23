@@ -122,7 +122,7 @@ export const authOptions: NextAuthOptions = {
   },
   pages: { signIn: "/login" },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.email = user.email;
         token.id = user.id;
@@ -132,6 +132,16 @@ export const authOptions: NextAuthOptions = {
         });
         token.role = dbUser?.role || "member";
         token.mustChangePassword = dbUser?.mustChangePassword || false;
+      } else if (trigger === "update" && token.id) {
+        // Refresh role/mustChangePassword from DB on session.update()
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { role: true, mustChangePassword: true },
+        });
+        if (dbUser) {
+          token.role = dbUser.role;
+          token.mustChangePassword = dbUser.mustChangePassword;
+        }
       }
       return token;
     },
