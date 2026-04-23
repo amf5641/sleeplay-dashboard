@@ -35,8 +35,6 @@ interface PtoRequest {
 interface PtoBalance {
   vacationAllowance: number;
   sickAllowance: number;
-  vacationAccrued: number;
-  sickAccrued: number;
   vacationUsed: number;
   sickUsed: number;
   vacationRemaining: number;
@@ -48,10 +46,6 @@ interface AllBalance extends PtoBalance {
   name: string;
   title: string;
   photo: string | null;
-}
-
-function fmtDays(n: number): string {
-  return Number.isInteger(n) ? n.toString() : n.toFixed(2);
 }
 
 const statusColors: Record<string, string> = {
@@ -277,12 +271,10 @@ export default function PtoPage() {
               <thead>
                 <tr className="border-b border-platinum text-left text-xs text-brand-gray">
                   <th className="px-5 py-2.5 font-medium">Employee</th>
-                  <th className="px-5 py-2.5 font-medium text-center" title="Total yearly allowance">Vacation Annual</th>
-                  <th className="px-5 py-2.5 font-medium text-center" title="Accrued so far this year (annual / 12 per month)">Vacation Accrued</th>
+                  <th className="px-5 py-2.5 font-medium text-center">Vacation Allowance</th>
                   <th className="px-5 py-2.5 font-medium text-center">Vacation Used</th>
                   <th className="px-5 py-2.5 font-medium text-center">Vacation Left</th>
-                  <th className="px-5 py-2.5 font-medium text-center">Sick Annual</th>
-                  <th className="px-5 py-2.5 font-medium text-center">Sick Accrued</th>
+                  <th className="px-5 py-2.5 font-medium text-center">Sick Allowance</th>
                   <th className="px-5 py-2.5 font-medium text-center">Sick Used</th>
                   <th className="px-5 py-2.5 font-medium text-center">Sick Left</th>
                 </tr>
@@ -318,17 +310,14 @@ export default function PtoPage() {
                         className="w-16 text-center border border-platinum rounded px-2 py-1 text-sm focus:outline-none focus:border-royal-purple bg-white"
                       />
                     </td>
-                    <td className="px-5 py-2.5 text-center" title={`${(b.vacationAllowance / 12).toFixed(2)}/month`}>
-                      <span className="text-brand-black">{fmtDays(b.vacationAccrued)}</span>
-                    </td>
                     <td className="px-5 py-2.5 text-center">
-                      <span className="text-brand-black">{fmtDays(b.vacationUsed)}</span>
+                      <span className="text-brand-black">{b.vacationUsed}</span>
                     </td>
                     <td className="px-5 py-2.5 text-center">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
                         b.vacationRemaining <= 2 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-800"
                       }`}>
-                        {fmtDays(b.vacationRemaining)}
+                        {b.vacationRemaining}
                       </span>
                     </td>
                     <td className="px-5 py-2.5 text-center">
@@ -344,17 +333,14 @@ export default function PtoPage() {
                         className="w-16 text-center border border-platinum rounded px-2 py-1 text-sm focus:outline-none focus:border-royal-purple bg-white"
                       />
                     </td>
-                    <td className="px-5 py-2.5 text-center" title={`${(b.sickAllowance / 12).toFixed(2)}/month`}>
-                      <span className="text-brand-black">{fmtDays(b.sickAccrued)}</span>
-                    </td>
                     <td className="px-5 py-2.5 text-center">
-                      <span className="text-brand-black">{fmtDays(b.sickUsed)}</span>
+                      <span className="text-brand-black">{b.sickUsed}</span>
                     </td>
                     <td className="px-5 py-2.5 text-center">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
                         b.sickRemaining <= 1 ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-800"
                       }`}>
-                        {fmtDays(b.sickRemaining)}
+                        {b.sickRemaining}
                       </span>
                     </td>
                   </tr>
@@ -370,7 +356,7 @@ export default function PtoPage() {
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold font-heading text-brand-black">Vacation Days</h3>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColors.vacation}`}>
-                  {fmtDays(balance.vacationRemaining)} available
+                  {balance.vacationRemaining} remaining
                 </span>
               </div>
               <div className="flex items-center gap-3">
@@ -381,16 +367,15 @@ export default function PtoPage() {
                   />
                 </div>
                 <span className="text-xs text-brand-gray whitespace-nowrap">
-                  {fmtDays(balance.vacationUsed)} used · {fmtDays(balance.vacationAccrued)} accrued of {balance.vacationAllowance}/yr
+                  {balance.vacationUsed} / {balance.vacationAllowance} used
                 </span>
               </div>
-              <p className="text-[11px] text-brand-gray mt-1.5">Accrues {(balance.vacationAllowance / 12).toFixed(2)} days/month</p>
             </div>
             <div className="bg-white rounded-lg p-4 shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold font-heading text-brand-black">Sick Days</h3>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColors.sick}`}>
-                  {fmtDays(balance.sickRemaining)} available
+                  {balance.sickRemaining} remaining
                 </span>
               </div>
               <div className="flex items-center gap-3">
@@ -401,10 +386,9 @@ export default function PtoPage() {
                   />
                 </div>
                 <span className="text-xs text-brand-gray whitespace-nowrap">
-                  {fmtDays(balance.sickUsed)} used · {fmtDays(balance.sickAccrued)} accrued of {balance.sickAllowance}/yr
+                  {balance.sickUsed} / {balance.sickAllowance} used
                 </span>
               </div>
-              <p className="text-[11px] text-brand-gray mt-1.5">Accrues {(balance.sickAllowance / 12).toFixed(2)} days/month</p>
             </div>
           </div>
         )}
