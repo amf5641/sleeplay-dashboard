@@ -7,6 +7,7 @@ import Topbar from "@/components/topbar";
 import DashboardWidgets from "@/components/dashboard-widgets";
 import ActivityFeed from "@/components/activity-feed";
 import DailyQuote from "@/components/daily-quote";
+import { useRole } from "@/hooks/use-role";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -71,6 +72,7 @@ function TaskItem({ task }: { task: MyTask }) {
 
 export default function HomePage() {
   const { data: session } = useSession();
+  const { isAdmin } = useRole();
   const { data: allTasks = [] } = useSWR<MyTask[]>("/api/my-tasks", fetcher);
   const [mounted, setMounted] = useState(false);
 
@@ -196,18 +198,20 @@ export default function HomePage() {
               {/* Quote */}
               <DailyQuote />
 
-              {/* Activity Feed */}
-              <div className="bg-white rounded-xl shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50 overflow-hidden">
-                <div className="px-4 py-3 border-b border-platinum">
-                  <h3 className="text-sm font-semibold text-brand-black flex items-center gap-2">
-                    <svg className="w-4 h-4 text-brand-gray" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                    Recent Activity
-                  </h3>
+              {/* Activity Feed — admin only */}
+              {isAdmin && (
+                <div className="bg-white rounded-xl shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-platinum">
+                    <h3 className="text-sm font-semibold text-brand-black flex items-center gap-2">
+                      <svg className="w-4 h-4 text-brand-gray" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                      Recent Activity
+                    </h3>
+                  </div>
+                  <div className="px-4 py-2 max-h-80 overflow-y-auto">
+                    <ActivityFeed limit={15} />
+                  </div>
                 </div>
-                <div className="px-4 py-2 max-h-80 overflow-y-auto">
-                  <ActivityFeed limit={15} />
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
