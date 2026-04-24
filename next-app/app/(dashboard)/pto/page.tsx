@@ -90,6 +90,7 @@ export default function PtoPage() {
   const [form, setForm] = useState({ personId: "", type: "vacation", startDate: "", endDate: "", note: "" });
   const [halfDay, setHalfDay] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: requests = [], mutate } = useSWR<PtoRequest[]>(`/api/pto?status=${filter}`, fetcher);
@@ -120,6 +121,27 @@ export default function PtoPage() {
   const rawDays = calcDays(form.startDate, form.endDate);
   const days = halfDay ? rawDays - 0.5 : rawDays;
 
+  const resetForm = () => {
+    setEditingId(null);
+    setForm({ personId: isAdmin ? "" : (myPerson?.id ?? ""), type: "vacation", startDate: "", endDate: "", note: "" });
+    setHalfDay(false);
+  };
+
+  const openEditModal = (req: PtoRequest) => {
+    setEditingId(req.id);
+    setForm({
+      personId: req.personId,
+      type: req.type,
+      startDate: req.startDate.slice(0, 10),
+      endDate: req.endDate.slice(0, 10),
+      note: req.note,
+    });
+    // Detect half day by comparing days to calcDays
+    const raw = calcDays(req.startDate.slice(0, 10), req.endDate.slice(0, 10));
+    setHalfDay(req.days === raw - 0.5);
+    setModalOpen(true);
+  };
+
   const createRequest = async () => {
     if (!form.personId || !form.startDate || !form.endDate) {
       toast("Please fill in all required fields", "error");
@@ -131,16 +153,16 @@ export default function PtoPage() {
     }
     if (days <= 0) return;
     setSaving(true);
-    const { error } = await apiFetch("/api/pto", {
-      method: "POST",
+    const isEdit = !!editingId;
+    const { error } = await apiFetch(isEdit ? `/api/pto/${editingId}` : "/api/pto", {
+      method: isEdit ? "PUT" : "POST",
       body: JSON.stringify({ ...form, days }),
     });
     setSaving(false);
     if (error) { toast(error, "error"); return; }
-    toast("PTO request submitted", "success");
+    toast(isEdit ? "PTO request updated" : "PTO request submitted", "success");
     setModalOpen(false);
-    setForm({ personId: isAdmin ? "" : (myPerson?.id ?? ""), type: "vacation", startDate: "", endDate: "", note: "" });
-    setHalfDay(false);
+    resetForm();
     mutate();
     mutateBalance();
     mutateAllBalances();
@@ -161,7 +183,7 @@ export default function PtoPage() {
   const deleteRequest = async (id: string) => {
     const { error } = await apiFetch(`/api/pto/${id}`, { method: "DELETE" });
     if (error) { toast(error, "error"); return; }
-    toast("PTO request deleted", "success");
+    toast("PTO request cancelled", "success");
     mutate();
     mutateBalance();
     mutateAllBalances();
@@ -486,6 +508,23 @@ export default function PtoPage() {
                     </button>
                   </div>
                 )}
+
+                {!isAdmin && req.person.email === userEmail && req.status === "pending" && (
+                  <div className="flex gap-2 mt-3 pt-3 border-t border-platinum">
+                    <button
+                      onClick={() => openEditModal(req)}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-royal-purple/10 text-royal-purple hover:bg-royal-purple/20 transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => deleteRequest(req.id)}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -494,7 +533,7 @@ export default function PtoPage() {
         )}
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="New PTO Request">
+      <Modal open={modalOpen} onClose={() => { setModalOpen(false); resetForm(); }} title={editingId ? "Edit PTO Request" : "New PTO Request"}>
         <div className="space-y-3">
           {isAdmin ? (
             <div>
@@ -593,7 +632,7 @@ export default function PtoPage() {
         </div>
         <div className="flex justify-end gap-3 mt-4">
           <button
-            onClick={() => setModalOpen(false)}
+            onClick={() => { setModalOpen(false); resetForm(); }}
             className="px-4 py-2 text-sm rounded bg-platinum hover:bg-lavender"
           >
             Cancel
@@ -603,7 +642,7 @@ export default function PtoPage() {
             disabled={saving || !form.personId || !form.startDate || !form.endDate || days <= 0}
             className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? "Submitting..." : "Submit Request"}
+            {saving ? "Saving..." : editingId ? "Save Changes" : "Submit Request"}
           </button>
         </div>
       </Modal>

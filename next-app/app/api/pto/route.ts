@@ -16,12 +16,22 @@ export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+  const user = session.user as { email?: string; role?: string };
+  const isAdmin = user.email === ADMIN_EMAIL || user.role === "admin";
+
   const personId = request.nextUrl.searchParams.get("personId");
   const status = request.nextUrl.searchParams.get("status");
 
   const where: Record<string, string> = {};
   if (personId) where.personId = personId;
   if (status && status !== "all") where.status = status;
+
+  // Non-admins can only see their own requests
+  if (!isAdmin) {
+    const me = await prisma.person.findUnique({ where: { email: user.email! } });
+    if (!me) return Response.json([]);
+    where.personId = me.id;
+  }
 
   const requests = await prisma.ptoRequest.findMany({
     where,
