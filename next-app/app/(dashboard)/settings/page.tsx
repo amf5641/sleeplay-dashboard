@@ -268,6 +268,45 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Email Test (admin only) */}
+      {isAdmin && (
+        <div className="px-6 pb-6">
+          <h2 className="text-sm font-semibold font-heading text-brand-black mb-3">Email Notifications</h2>
+          <div className="bg-white rounded-lg border border-platinum/50 p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-brand-black">Test Resend configuration</p>
+                <p className="text-xs text-brand-gray mt-0.5">Send a test email to verify Resend is set up correctly.</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const res = await fetch("/api/test-email", { method: "POST" });
+                  const data = await res.json();
+                  console.log("test-email result:", data);
+                  if (res.ok) {
+                    const hasKey = data.debug?.hasApiKey;
+                    if (!hasKey) {
+                      toast("RESEND_API_KEY is not set in env vars", "error");
+                    } else if (data.result?.error) {
+                      toast(`Resend error: ${JSON.stringify(data.result.error)}`, "error");
+                    } else if (data.result?.skipped) {
+                      toast("Email was skipped (no API key detected)", "error");
+                    } else {
+                      toast(`Test email sent! Check ${data.debug?.notifyEmail || "inbox"}`, "success");
+                    }
+                  } else {
+                    toast(data.error || "Test failed", "error");
+                  }
+                }}
+                className="px-4 py-1.5 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue transition-colors"
+              >
+                Send Test Email
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Appearance Section */}
       <div className="px-6 pb-6">
         <h2 className="text-sm font-semibold font-heading text-brand-black mb-3">Appearance</h2>
