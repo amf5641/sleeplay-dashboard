@@ -7,6 +7,7 @@ import Topbar from "@/components/topbar";
 import DashboardWidgets from "@/components/dashboard-widgets";
 import ActivityFeed from "@/components/activity-feed";
 import DailyQuote from "@/components/daily-quote";
+import UpcomingBirthdays from "@/components/upcoming-birthdays";
 import { useRole } from "@/hooks/use-role";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -193,10 +194,13 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Right: Quote + Activity */}
+            {/* Right: Quote + Birthdays + Activity */}
             <div className="flex-1 space-y-4">
               {/* Quote */}
               <DailyQuote />
+
+              {/* Upcoming Birthdays */}
+              <UpcomingBirthdays />
 
               {/* Activity Feed — admin only */}
               {isAdmin && (

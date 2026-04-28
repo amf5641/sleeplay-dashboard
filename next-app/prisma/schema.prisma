@@ -81,6 +81,7 @@ model Person {
   responsibilities   String             @default("")
   skills             String             @default("")
   startDate          DateTime?
+  birthday           DateTime?
   slack              String             @default("")
   phone              String             @default("")
   vacationAllowance  Float              @default(10)

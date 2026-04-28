@@ -12,7 +12,7 @@ const ADMIN_EMAIL = "admin@sleeplay.com";
 
 interface DirectReport { id: string; name: string; title: string; photo: string | null }
 interface PersonProject { id: string; name: string; color: string; status: string }
-interface Person { id: string; name: string; email: string | null; title: string; location: string; photo: string | null; goals: string; hobbies: string; interests: string; responsibilities: string; skills: string; startDate: string | null; slack: string; phone: string; managerId: string | null; reports: DirectReport[]; projects: PersonProject[] }
+interface Person { id: string; name: string; email: string | null; title: string; location: string; photo: string | null; goals: string; hobbies: string; interests: string; responsibilities: string; skills: string; startDate: string | null; birthday: string | null; slack: string; phone: string; managerId: string | null; reports: DirectReport[]; projects: PersonProject[] }
 interface PersonSummary { id: string; name: string }
 
 function resizeImage(file: File, maxSize: number): Promise<string> {
@@ -55,6 +55,7 @@ export default function TeamMemberPage() {
   const [responsibilities, setResponsibilities] = useState("");
   const [skills, setSkills] = useState("");
   const [startDate, setStartDate] = useState<string>("");
+  const [birthday, setBirthday] = useState<string>("");
   const [slack, setSlack] = useState("");
   const [phone, setPhone] = useState("");
   const [managerId, setManagerId] = useState<string | null>(null);
@@ -69,6 +70,7 @@ export default function TeamMemberPage() {
       setResponsibilities(person.responsibilities || "");
       setSkills(person.skills || "");
       setStartDate(person.startDate ? person.startDate.slice(0, 10) : "");
+      setBirthday(person.birthday ? person.birthday.slice(0, 10) : "");
       setSlack(person.slack || "");
       setPhone(person.phone || "");
       setManagerId(person.managerId);
@@ -79,7 +81,7 @@ export default function TeamMemberPage() {
     await fetch(`/api/people/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ goals, hobbies, interests, responsibilities, skills, startDate: startDate || null, slack, phone, managerId }),
+      body: JSON.stringify({ goals, hobbies, interests, responsibilities, skills, startDate: startDate || null, birthday: birthday || null, slack, phone, managerId }),
     });
     mutate();
   };
@@ -234,6 +236,23 @@ export default function TeamMemberPage() {
             </div>
           </div>
         )}
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-brand-gray mb-2">Birthday</label>
+          {canEdit ? (
+            <input
+              type="date"
+              value={birthday}
+              onChange={(e) => setBirthday(e.target.value)}
+              className="px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple bg-white"
+            />
+          ) : (
+            <p className="text-sm text-brand-black">
+              {birthday ? new Date(birthday + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric" }) : "—"}
+            </p>
+          )}
+          {canEdit && <p className="text-[11px] text-brand-gray mt-1">Year is private — only month and day are shown to teammates</p>}
+        </div>
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-brand-gray mb-2">Start Date</label>
