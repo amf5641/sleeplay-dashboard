@@ -18,12 +18,19 @@ const WESPER_ORDER_TAG = (process.env.WESPER_ORDER_TAG ?? "wesper").toLowerCase(
 
 // ── HMAC verification ─────────────────────────────────────────────────────────
 function verifyShopifyHmac(rawBody: string, hmacHeader: string | null): boolean {
-  if (!hmacHeader || !SHOPIFY_WEBHOOK_SECRET) return false;
+  if (!hmacHeader || !SHOPIFY_WEBHOOK_SECRET) {
+    console.warn("HMAC check failed: missing header or secret. header present:", !!hmacHeader, "secret present:", !!SHOPIFY_WEBHOOK_SECRET);
+    return false;
+  }
   const digest = crypto
     .createHmac("sha256", SHOPIFY_WEBHOOK_SECRET)
     .update(rawBody, "utf8")
     .digest("base64");
-  return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(hmacHeader));
+  const match = digest === hmacHeader;
+  if (!match) {
+    console.warn("HMAC mismatch. received:", hmacHeader.substring(0, 12), "computed:", digest.substring(0, 12), "body length:", rawBody.length);
+  }
+  return match;
 }
 
 // ── Fetch DOB + phone from Shopify order metafields (checkoutblocks namespace) ─
