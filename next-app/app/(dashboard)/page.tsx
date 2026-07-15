@@ -5,6 +5,7 @@ import useSWR from "swr";
 import Link from "next/link";
 import Topbar from "@/components/topbar";
 import DashboardWidgets from "@/components/dashboard-widgets";
+import GoalsSummaryWidget from "@/components/goals/goals-summary-widget";
 import ActivityFeed from "@/components/activity-feed";
 import DailyQuote from "@/components/daily-quote";
 import UpcomingBirthdays from "@/components/upcoming-birthdays";
@@ -137,6 +138,7 @@ export default function HomePage() {
 
           {/* Dashboard Widgets */}
           <DashboardWidgets />
+          <GoalsSummaryWidget />
 
           <div className="flex flex-col md:flex-row gap-8">
             {/* Left: Tasks widget */}

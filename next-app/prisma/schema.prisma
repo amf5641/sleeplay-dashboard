@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -27,6 +26,10 @@ model User {
   activityEvents     ActivityEvent[] @relation("ActivityEvents")
   createdProjects    Project[]       @relation("ProjectCreator")
   createdTasks       Task[]          @relation("TaskCreator")
+  ownedGoals         Goal[]          @relation("GoalOwner")
+  createdGoals       Goal[]          @relation("GoalCreator")
+  goalUpdates        GoalUpdate[]    @relation("GoalUpdateAuthor")
+  goalFollows        GoalFollower[]
 }
 
 model Notification {
@@ -98,6 +101,7 @@ model Department {
   position  Int       @default(0)
   createdAt DateTime  @default(now())
   projects  Project[]
+  goals     Goal[]
 }
 
 model Project {
@@ -119,6 +123,7 @@ model Project {
   members        ProjectMember[]
   customFields   CustomField[]
   activityEvents ActivityEvent[]
+  goalRelationships GoalRelationship[]
 }
 
 model ProjectMember {
@@ -157,6 +162,7 @@ model Task {
   comments         TaskComment[]
   dependsOn        TaskDependency[] @relation("DependsOn")
   blocks           TaskDependency[] @relation("Blocks")
+  goalRelationships GoalRelationship[]
 }
 
 model TaskAttachment {
@@ -296,4 +302,90 @@ model ProjectTemplateTask {
   title     String
   priority  String                 @default("medium")
   position  Int                    @default(0)
+}
+
+// Goals (OKR-style) — company/team objectives with optional sub-goal hierarchy,
+// progress rollup (manual or automatic from sub-goals/projects/tasks), and a
+// status-update timeline.
+model Goal {
+  id             String      @id @default(cuid())
+  name           String
+  description    String      @default("")
+  ownerId        String
+  owner          User        @relation("GoalOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  isCompanyLevel Boolean     @default(false)
+  departmentId   String?
+  department     Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  parentId       String?
+  parent         Goal?       @relation("SubGoals", fields: [parentId], references: [id], onDelete: SetNull)
+  subGoals       Goal[]      @relation("SubGoals")
+
+  status     String  @default("On Track") // On Track | At Risk | Off Track | Achieved | Partial | Missed | Dropped
+  timePeriod String  @default("") // e.g. "Q3-2026" | "H1-2026" | "FY2026" | "" (custom, use startOn/dueOn)
+  startOn    String? // "YYYY-MM-DD"
+  dueOn      String? // "YYYY-MM-DD"
+
+  metricUnit     String @default("none") // none | percentage | currency | number
+  initialValue   Float?
+  targetValue    Float?
+  currentValue   Float? // authoritative only when progressSource === "manual"
+  progressSource String @default("manual") // manual | subgoals | project | task
+
+  createdById String?
+  createdBy   User?    @relation("GoalCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  relationships GoalRelationship[]
+  updates       GoalUpdate[]
+  followers     GoalFollower[]
+
+  @@index([departmentId])
+  @@index([parentId])
+  @@index([isCompanyLevel])
+}
+
+// Supporting work — attaches an existing Project (or a specific Task within one)
+// to a Goal so automatic progress can roll up from that work's completion.
+model GoalRelationship {
+  id                 String   @id @default(cuid())
+  goalId             String
+  goal               Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  projectId          String?
+  project            Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId             String?
+  task               Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  contributionWeight Float    @default(1)
+  createdAt          DateTime @default(now())
+
+  @@index([goalId])
+  @@index([projectId])
+}
+
+// Status-update timeline — the periodic, "official" update an owner or follower
+// posts (status snapshot + commentary), distinct from the generic ActivityEvent log.
+model GoalUpdate {
+  id        String   @id @default(cuid())
+  goalId    String
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("GoalUpdateAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  status    String // snapshot at time of posting
+  body      String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([goalId, createdAt])
+}
+
+// Followers — who may post a status update and who gets notified. Distinct from
+// ProjectMember since Goals aren't project-scoped.
+model GoalFollower {
+  id        String   @id @default(cuid())
+  goalId    String
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([goalId, userId])
 }
