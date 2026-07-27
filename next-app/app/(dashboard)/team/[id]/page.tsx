@@ -271,9 +271,57 @@ export default function TeamMemberPage() {
           )}
         </div>
 
+        {/* Job Position card: title + roles & responsibilities + skills */}
+        <div className="mb-6 bg-white rounded-xl border border-platinum/70 shadow-[0_4px_34px_rgba(0,0,0,0.05)] p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <svg className="w-4 h-4 text-royal-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+            <h3 className="text-sm font-semibold font-heading text-brand-black">Job Position</h3>
+          </div>
+          <p className="text-base font-medium text-royal-purple mb-4">{person.title || "—"}</p>
+
+          <p className="text-xs font-medium text-brand-gray uppercase tracking-wide mb-2">Roles &amp; Responsibilities</p>
+          {canEdit ? (
+            <textarea
+              value={responsibilities}
+              onChange={(e) => setResponsibilities(e.target.value)}
+              rows={5}
+              placeholder={"One per line, e.g.\nLeads performance marketing\nOwns Klaviyo lifecycle flows\nManages ad budget allocation"}
+              className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y bg-white mb-4"
+            />
+          ) : responsibilities ? (
+            <ul className="space-y-1.5 mb-4">
+              {responsibilities.split("\n").map((line) => line.replace(/^[-•*]\s*/, "").trim()).filter(Boolean).map((line, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-brand-black">
+                  <span className="w-1.5 h-1.5 rounded-full bg-royal-purple mt-1.5 flex-shrink-0" />
+                  {line}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-brand-gray mb-4">Not filled in yet.</p>
+          )}
+
+          <p className="text-xs font-medium text-brand-gray uppercase tracking-wide mb-2">Key Skills</p>
+          {canEdit ? (
+            <textarea
+              value={skills}
+              onChange={(e) => setSkills(e.target.value)}
+              rows={2}
+              placeholder="Comma-separated, e.g. Paid Ads, SEO, Analytics, Copywriting"
+              className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y bg-white"
+            />
+          ) : skills ? (
+            <div className="flex flex-wrap gap-1.5">
+              {skills.split(/[,\n]/).map((s) => s.replace(/^[-•*]\s*/, "").trim()).filter(Boolean).map((s, i) => (
+                <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-lavender text-midnight-blue font-medium">{s}</span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-brand-gray">Not filled in yet.</p>
+          )}
+        </div>
+
         {[
-          { label: "Responsibilities", value: responsibilities, set: setResponsibilities, placeholder: "Day-to-day ownership areas, e.g.\n• Leads performance marketing\n• Owns Klaviyo lifecycle flows\n• Manages ad budget allocation" },
-          { label: "Key Skills", value: skills, set: setSkills, placeholder: "Areas of expertise — comma-separated or bulleted, e.g. Paid Ads, SEO, Analytics, Copywriting" },
           { label: "About Me", value: goals, set: setGoals, placeholder: "" },
           { label: "Hobbies/Interests", value: hobbies, set: setHobbies, placeholder: "" },
         ].map((field) => (
@@ -283,7 +331,7 @@ export default function TeamMemberPage() {
               <textarea
                 value={field.value}
                 onChange={(e) => field.set(e.target.value)}
-                rows={field.label === "Responsibilities" ? 5 : 3}
+                rows={3}
                 placeholder={field.placeholder}
                 className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y bg-white"
               />
