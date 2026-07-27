@@ -77,6 +77,17 @@ export default function TeamMemberPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [tab, setTab] = useState<"overview" | "role">("overview");
+  const [editingRole, setEditingRole] = useState(false);
+
+  const saveRole = async () => {
+    await fetch(`/api/people/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ responsibilities, skills }),
+    });
+    setEditingRole(false);
+    mutate();
+  };
 
   useEffect(() => {
     if (person) {
@@ -384,19 +395,33 @@ export default function TeamMemberPage() {
 
             {/* Responsibilities */}
             <div className="mb-8">
-              <h4 className="text-sm font-semibold font-heading text-brand-black mb-4">
-                What {person.name.split(" ")[0]} owns
-              </h4>
-              {canEdit ? (
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-semibold font-heading text-brand-black">
+                  What {person.name.split(" ")[0]} owns
+                </h4>
+                {canEdit && (
+                  editingRole ? (
+                    <div className="flex gap-2">
+                      <button onClick={() => { setEditingRole(false); setResponsibilities(person.responsibilities || ""); setSkills(person.skills || ""); }} className="text-xs px-3 py-1.5 rounded bg-platinum hover:bg-lavender">Cancel</button>
+                      <button onClick={saveRole} className="text-xs px-3 py-1.5 rounded bg-royal-purple text-white hover:bg-midnight-blue">Save</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setEditingRole(true)} className="text-xs px-3 py-1.5 rounded border border-platinum text-brand-gray hover:border-royal-purple hover:text-royal-purple transition-colors">
+                      Edit
+                    </button>
+                  )
+                )}
+              </div>
+              {canEdit && editingRole ? (
                 <>
                   <textarea
                     value={responsibilities}
                     onChange={(e) => setResponsibilities(e.target.value)}
-                    rows={10}
+                    rows={12}
                     placeholder={"One responsibility per line, e.g.\nLeads performance marketing\nOwns Klaviyo lifecycle flows\nManages ad budget allocation"}
                     className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y bg-white"
                   />
-                  <p className="text-[11px] text-brand-gray mt-1">One per line — each line becomes its own item. Remember to hit Save &amp; Back.</p>
+                  <p className="text-[11px] text-brand-gray mt-1">One per line — each line becomes its own numbered item.</p>
                 </>
               ) : responsibilities ? (
                 <ol className="space-y-0">
@@ -417,7 +442,7 @@ export default function TeamMemberPage() {
             {/* Skills */}
             <div className="mb-6">
               <h4 className="text-sm font-semibold font-heading text-brand-black mb-3">Key Skills</h4>
-              {canEdit ? (
+              {canEdit && editingRole ? (
                 <textarea
                   value={skills}
                   onChange={(e) => setSkills(e.target.value)}
