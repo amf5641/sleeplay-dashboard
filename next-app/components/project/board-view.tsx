@@ -3,6 +3,7 @@ import { useRef, useCallback } from "react";
 import type { Task, Project } from "@/components/project/types";
 import { STATUS_OPTIONS, statusColors, statusDot } from "@/components/project/types";
 import Initials from "@/components/project/initials";
+import { RepeatBadge } from "@/components/project/recurrence-editor";
 
 interface BoardViewProps {
   project: Project;
@@ -144,7 +145,10 @@ export default function BoardView({
                   onTouchEnd={handleTouchEnd}
                   className={`bg-white rounded-lg border border-platinum p-3 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${boardDragId === task.id ? "opacity-40" : ""} ${activeTaskId === task.id ? "ring-2 ring-royal-purple" : ""}`}
                 >
-                  <p className={`text-sm font-medium mb-2 ${task.completed ? "line-through text-brand-gray/50" : "text-brand-black"}`}>{task.title}</p>
+                  <p className={`text-sm font-medium mb-2 flex items-center gap-1.5 ${task.completed ? "line-through text-brand-gray/50" : "text-brand-black"}`}>
+                    <span>{task.title}</span>
+                    <RepeatBadge rule={task.recurrenceRule} legacyFreq={task.repeatFreq} />
+                  </p>
                   <div className="flex items-center gap-2 flex-wrap">
                     {task.dueDate && (
                       <span className={`text-[11px] px-1.5 py-0.5 rounded ${isOverdue(task.dueDate) && !task.completed ? "bg-red-100 text-red-600" : "bg-gray-100 text-brand-gray"}`}>

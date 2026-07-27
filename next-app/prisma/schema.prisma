@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -26,6 +27,7 @@ model User {
   activityEvents     ActivityEvent[] @relation("ActivityEvents")
   createdProjects    Project[]       @relation("ProjectCreator")
   createdTasks       Task[]          @relation("TaskCreator")
+  analyticsGoals     AnalyticsGoal[]
   ownedGoals         Goal[]          @relation("GoalOwner")
   createdGoals       Goal[]          @relation("GoalCreator")
   goalUpdates        GoalUpdate[]    @relation("GoalUpdateAuthor")
@@ -105,24 +107,24 @@ model Department {
 }
 
 model Project {
-  id           String          @id @default(cuid())
-  name         String
-  description  String          @default("")
-  status       String          @default("On Track")
-  notes        String          @default("")
-  color        String          @default("#664FA6")
-  sectionOrder String          @default("[]")
-  columnConfig String          @default("{}") // JSON: { hiddenColumns: string[] }
-  departmentId String?
-  department   Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  createdById  String?
-  createdBy    User?           @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  tasks          Task[]
-  members        ProjectMember[]
-  customFields   CustomField[]
-  activityEvents ActivityEvent[]
+  id                String             @id @default(cuid())
+  name              String
+  description       String             @default("")
+  status            String             @default("On Track")
+  notes             String             @default("")
+  color             String             @default("#664FA6")
+  sectionOrder      String             @default("[]")
+  columnConfig      String             @default("{}") // JSON: { hiddenColumns: string[] }
+  departmentId      String?
+  department        Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdById       String?
+  createdBy         User?              @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  tasks             Task[]
+  members           ProjectMember[]
+  customFields      CustomField[]
+  activityEvents    ActivityEvent[]
   goalRelationships GoalRelationship[]
 }
 
@@ -138,30 +140,32 @@ model ProjectMember {
 }
 
 model Task {
-  id            String             @id @default(cuid())
-  projectId     String
-  project       Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  parentId      String?
-  parent        Task?              @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
-  subtasks      Task[]             @relation("Subtasks")
-  title         String             @default("Untitled")
-  description   String             @default("")
-  dueDate       String?
-  priority      String             @default("medium")
-  status        String             @default("On Track")
-  notes         String             @default("")
-  completed     Boolean            @default(false)
-  repeatFreq    String?            // "daily", "weekly", "monthly", "yearly"
-  repeatDay     Int?               // day of week (0-6) for weekly, day of month for monthly
-  createdById   String?
-  createdBy     User?              @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt     DateTime           @default(now())
-  collaborators    TaskCollaborator[]
+  id                String                 @id @default(cuid())
+  projectId         String
+  project           Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentId          String?
+  parent            Task?                  @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks          Task[]                 @relation("Subtasks")
+  title             String                 @default("Untitled")
+  description       String                 @default("")
+  dueDate           String?
+  priority          String                 @default("medium")
+  status            String                 @default("On Track")
+  notes             String                 @default("")
+  completed         Boolean                @default(false)
+  repeatFreq        String? // legacy simple repeat — superseded by recurrenceRule
+  repeatDay         Int? // legacy
+  recurrenceRule    String? // JSON RecurrenceRule (see lib/recurrence.ts)
+  recurrenceId      String? // shared across all instances of a recurring series
+  createdById       String?
+  createdBy         User?                  @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt         DateTime               @default(now())
+  collaborators     TaskCollaborator[]
   customFieldValues TaskCustomFieldValue[]
-  attachments      TaskAttachment[]
-  comments         TaskComment[]
-  dependsOn        TaskDependency[] @relation("DependsOn")
-  blocks           TaskDependency[] @relation("Blocks")
+  attachments       TaskAttachment[]
+  comments          TaskComment[]
+  dependsOn         TaskDependency[]       @relation("DependsOn")
+  blocks            TaskDependency[]       @relation("Blocks")
   goalRelationships GoalRelationship[]
 }
 
@@ -304,9 +308,69 @@ model ProjectTemplateTask {
   position  Int                    @default(0)
 }
 
+model UnfulfilledOrder {
+  id             String @id @default(cuid())
+  shopifyOrderId String @unique
+
+  // Cliente
+  customerName  String
+  customerEmail String
+  customerPhone String?
+
+  // Orden
+  orderDate  DateTime
+  totalPrice Float?
+
+  // Items (SKU, producto, cantidad, categoría)
+  items          String @default("[]") // JSON array: [{ sku, productName, quantity, category }]
+  outOfStockSkus String @default("[]") // JSON array de SKUs sin stock
+  availableSkus  String @default("[]") // JSON array de SKUs disponibles
+
+  // Email automation
+  firstUnfulfilledDate   DateTime  @default(now())
+  emailSentAt            DateTime?
+  emailStatus            String? // "pending", "sent", "bounced"
+  customerResponseStatus String? // "waiting", "chose_alternative", "chose_partial", "cancelled"
+
+  // Notas
+  notes         String @default("")
+  internalNotes String @default("")
+
+  // Resolución
+  resolvedAt DateTime?
+  resolvedBy String?
+
+  // Metadata
+  updatedAt      DateTime @updatedAt
+  excelSheetDate String? // Fecha del sheet de Excel (ej: "05-05")
+
+  @@index([shopifyOrderId])
+  @@index([firstUnfulfilledDate])
+  @@index([emailSentAt])
+}
+
+// Retention Analytics — monthly revenue targets for the pacing-vs-goal widget.
+// No Klaviyo/Shopify API provides a "target" — this is the one manually-set value
+// the analytics module needs, everything else is computed live.
+model AnalyticsGoal {
+  id            String   @id @default(cuid())
+  month         String // "2026-07" format
+  targetRevenue Float
+  channel       String   @default("") // "email" | "sms" | "" (combined/overall) — non-nullable
+  // since Prisma compound @@unique keys don't support nullable fields
+  notes         String   @default("")
+  createdById   String
+  createdBy     User     @relation(fields: [createdById], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([month, channel])
+}
+
 // Goals (OKR-style) — company/team objectives with optional sub-goal hierarchy,
 // progress rollup (manual or automatic from sub-goals/projects/tasks), and a
-// status-update timeline.
+// status-update timeline. Distinct from AnalyticsGoal, which stays scoped to
+// monthly marketing-revenue pacing.
 model Goal {
   id             String      @id @default(cuid())
   name           String

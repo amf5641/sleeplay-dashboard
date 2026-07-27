@@ -5,6 +5,7 @@ import { useClickOutside, useEscapeKey } from "@/hooks/use-click-outside";
 import { STATUS_OPTIONS, statusColors, isUrl, toHref } from "@/components/project/types";
 import Initials from "@/components/project/initials";
 import RichTextEditor from "@/components/project/rich-text-editor";
+import RecurrenceEditor from "@/components/project/recurrence-editor";
 import { sanitizeHtml } from "@/lib/sanitize";
 
 interface TaskDetailPanelProps {
@@ -210,28 +211,26 @@ export default function TaskDetailPanel({
             </div>
           </div>
           {/* Repeat */}
-          <div className="flex items-center py-3 border-b border-platinum/30">
-            <div className="w-28 text-xs text-brand-gray flex-shrink-0">Repeat</div>
-            <div className="flex-1 flex items-center gap-2">
-              <select value={activeTask.repeatFreq || ""} onChange={(e) => { const freq = e.target.value || null; updateTaskField(activeTask.id, "repeatFreq", freq); if (!freq) updateTaskField(activeTask.id, "repeatDay", null); }} className="text-sm border-0 focus:outline-none bg-transparent cursor-pointer">
-                <option value="">None</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-              </select>
-              {activeTask.repeatFreq === "weekly" && (
-                <select value={activeTask.repeatDay ?? ""} onChange={(e) => updateTaskField(activeTask.id, "repeatDay", e.target.value ? parseInt(e.target.value) : null)} className="text-xs border border-platinum rounded-lg px-1.5 py-0.5 bg-white">
-                  <option value="">Same day</option>
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => <option key={i} value={i}>{d}</option>)}
-                </select>
-              )}
-              {activeTask.repeatFreq === "monthly" && (
-                <select value={activeTask.repeatDay ?? ""} onChange={(e) => updateTaskField(activeTask.id, "repeatDay", e.target.value ? parseInt(e.target.value) : null)} className="text-xs border border-platinum rounded-lg px-1.5 py-0.5 bg-white">
-                  <option value="">Same day</option>
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}</option>)}
-                </select>
-              )}
+          <div className="flex items-start py-3 border-b border-platinum/30">
+            <div className="w-28 text-xs text-brand-gray flex-shrink-0 pt-1">Repeat</div>
+            <div className="flex-1">
+              <RecurrenceEditor
+                key={activeTask.id + "-rec-" + (activeTask.recurrenceRule ?? "")}
+                value={activeTask.recurrenceRule}
+                onSave={(ruleJson) => {
+                  // Editing the rule of an existing series affects all future
+                  // repeats (the next instance is cloned from this one).
+                  if (activeTask.recurrenceId && activeTask.recurrenceRule && ruleJson !== activeTask.recurrenceRule) {
+                    const msg = ruleJson
+                      ? "Apply this schedule to all future repeats of this task?"
+                      : "Stop repeating this task? Completed instances stay in history.";
+                    if (!window.confirm(msg)) return;
+                  }
+                  updateTaskField(activeTask.id, "recurrenceRule", ruleJson);
+                  // Clear legacy fields so old logic doesn't double-fire
+                  if (ruleJson && activeTask.repeatFreq) updateTaskField(activeTask.id, "repeatFreq", null);
+                }}
+              />
             </div>
           </div>
           {/* Notes */}

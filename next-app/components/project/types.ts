@@ -10,6 +10,7 @@ export interface TaskBlock { id: string; task: { id: string; title: string; comp
 export interface Subtask {
   id: string; title: string; description: string; dueDate: string | null; priority: string; status: string; notes: string; completed: boolean; createdAt: string;
   repeatFreq: string | null; repeatDay: number | null;
+  recurrenceRule: string | null; recurrenceId: string | null;
   createdBy?: { id: string; email: string } | null;
   collaborators: { person: Person }[];
   customFieldValues: TaskCustomFieldValue[];

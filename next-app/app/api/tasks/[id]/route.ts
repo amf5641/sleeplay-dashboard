@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
+import { randomUUID } from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { notifyCollaborators } from "@/lib/notify";
+import { parseRule, nextDueDate, seriesEnded } from "@/lib/recurrence";
 
 function computeNextDueDate(currentDue: string | null, freq: string, repeatDay: number | null): string {
   const base = currentDue ? new Date(currentDue + "T00:00:00") : new Date();
@@ -65,7 +67,15 @@ export async function PUT(
   const body = await request.json();
   const data: Record<string, unknown> = {};
 
-  const fields = ["title", "description", "dueDate", "priority", "completed", "status", "notes", "repeatFreq", "repeatDay"];
+  const fields = ["title", "description", "dueDate", "priority", "completed", "status", "notes", "repeatFreq", "repeatDay", "recurrenceRule", "recurrenceId"];
+
+  // Setting a recurrence rule on a task that isn't in a series yet starts one
+  if (body.recurrenceRule && body.recurrenceId === undefined) {
+    const existing = await prisma.task.findUnique({ where: { id }, select: { recurrenceId: true } });
+    if (!existing?.recurrenceId) data.recurrenceId = randomUUID();
+  }
+  // Removing the rule detaches the task from its series
+  if (body.recurrenceRule === null) data.recurrenceId = null;
   for (const field of fields) {
     if (body[field] !== undefined) data[field] = body[field];
   }
@@ -143,28 +153,71 @@ export async function PUT(
     }
   }
 
-  // Auto-create next occurrence when a repeating task is completed
-  if (body.completed === true && task.repeatFreq) {
-    const nextDue = computeNextDueDate(task.dueDate, task.repeatFreq, task.repeatDay);
-    const newTask = await prisma.task.create({
-      data: {
-        projectId: task.projectId,
-        parentId: task.parentId,
-        title: task.title,
-        description: task.description,
-        dueDate: nextDue,
-        priority: task.priority,
-        status: "On Track",
-        notes: task.notes,
-        repeatFreq: task.repeatFreq,
-        repeatDay: task.repeatDay,
-      },
-    });
-    // Copy collaborators to the new task
-    if (task.collaborators.length > 0) {
-      await prisma.taskCollaborator.createMany({
-        data: task.collaborators.map((c) => ({ taskId: newTask.id, personId: c.person.id })),
+  // Auto-create the next occurrence when a recurring task is completed.
+  // Next due date is computed from the DUE date (Asana behavior), so early or
+  // late completion doesn't drift the schedule. The completed instance stays
+  // in history untouched.
+  if (body.completed === true) {
+    const rule = parseRule(task.recurrenceRule);
+    let nextDue: string | null = null;
+    let ended = false;
+
+    if (rule) {
+      nextDue = nextDueDate(rule, task.dueDate);
+      const completedCount = task.recurrenceId
+        ? await prisma.task.count({ where: { recurrenceId: task.recurrenceId, completed: true } })
+        : 1;
+      ended = seriesEnded(rule, nextDue, completedCount);
+    } else if (task.repeatFreq) {
+      // Legacy simple repeat
+      nextDue = computeNextDueDate(task.dueDate, task.repeatFreq, task.repeatDay);
+    }
+
+    if (nextDue && !ended) {
+      const attachments = await prisma.taskAttachment.findMany({ where: { taskId: id } });
+      const newTask = await prisma.task.create({
+        data: {
+          projectId: task.projectId,
+          parentId: task.parentId,
+          title: task.title,
+          description: task.description,
+          dueDate: nextDue,
+          priority: task.priority,
+          status: "On Track",
+          notes: task.notes,
+          repeatFreq: task.repeatFreq,
+          repeatDay: task.repeatDay,
+          recurrenceRule: task.recurrenceRule,
+          recurrenceId: task.recurrenceId ?? (rule ? randomUUID() : null),
+          createdById: task.createdById,
+        },
       });
+      if (task.collaborators.length > 0) {
+        await prisma.taskCollaborator.createMany({
+          data: task.collaborators.map((c) => ({ taskId: newTask.id, personId: c.person.id })),
+        });
+      }
+      if (attachments.length > 0) {
+        await prisma.taskAttachment.createMany({
+          data: attachments.map((a) => ({ taskId: newTask.id, name: a.name, url: a.url })),
+        });
+      }
+      // Recreate the checklist as fresh, uncompleted subtasks
+      if (task.subtasks.length > 0) {
+        for (const sub of task.subtasks) {
+          await prisma.task.create({
+            data: {
+              projectId: task.projectId,
+              parentId: newTask.id,
+              title: sub.title,
+              description: sub.description,
+              priority: sub.priority,
+              status: "On Track",
+              notes: sub.notes,
+            },
+          });
+        }
+      }
     }
   }
 

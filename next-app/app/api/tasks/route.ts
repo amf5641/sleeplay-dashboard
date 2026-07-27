@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { randomUUID } from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -25,6 +26,8 @@ export async function POST(request: NextRequest) {
       priority: body.priority ?? "medium",
       status: body.status ?? "On Track",
       notes: body.notes ?? "",
+      recurrenceRule: body.recurrenceRule ?? null,
+      recurrenceId: body.recurrenceRule ? randomUUID() : null,
       createdById: creatorUser?.id ?? null,
       collaborators: body.collaborators?.length
         ? {
