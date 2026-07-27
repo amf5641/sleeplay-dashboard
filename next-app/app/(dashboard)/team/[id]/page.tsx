@@ -76,6 +76,7 @@ export default function TeamMemberPage() {
   const [managerId, setManagerId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [tab, setTab] = useState<"overview" | "role">("overview");
 
   useEffect(() => {
     if (person) {
@@ -155,6 +156,24 @@ export default function TeamMemberPage() {
             {person.location && <p className="text-sm text-brand-gray">{person.location}</p>}
           </div>
         </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-platinum mb-6">
+          <button
+            onClick={() => setTab("overview")}
+            className={`px-1 pb-2.5 text-sm font-medium border-b-2 transition-colors duration-150 ${tab === "overview" ? "border-royal-purple text-brand-black" : "border-transparent text-brand-gray hover:text-brand-black"}`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setTab("role")}
+            className={`px-1 pb-2.5 text-sm font-medium border-b-2 transition-colors duration-150 ml-6 ${tab === "role" ? "border-royal-purple text-brand-black" : "border-transparent text-brand-gray hover:text-brand-black"}`}
+          >
+            Role &amp; Responsibilities
+          </button>
+        </div>
+
+        {tab === "overview" && (<>
         <div className="mb-6">
           <label className="block text-sm font-medium text-brand-gray mb-2">Reports to</label>
           {isAdmin ? (
@@ -325,56 +344,6 @@ export default function TeamMemberPage() {
           )}
         </div>
 
-        {/* Job Position card: title + roles & responsibilities + skills */}
-        <div className="mb-6 bg-white rounded-xl border border-platinum/70 shadow-[0_4px_34px_rgba(0,0,0,0.05)] p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <svg className="w-4 h-4 text-royal-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-            <h3 className="text-sm font-semibold font-heading text-brand-black">Job Position</h3>
-          </div>
-          <p className="text-base font-medium text-royal-purple mb-4">{person.title || "—"}</p>
-
-          <p className="text-xs font-medium text-brand-gray uppercase tracking-wide mb-2">Roles &amp; Responsibilities</p>
-          {canEdit ? (
-            <textarea
-              value={responsibilities}
-              onChange={(e) => setResponsibilities(e.target.value)}
-              rows={5}
-              placeholder={"One per line, e.g.\nLeads performance marketing\nOwns Klaviyo lifecycle flows\nManages ad budget allocation"}
-              className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y bg-white mb-4"
-            />
-          ) : responsibilities ? (
-            <ul className="space-y-1.5 mb-4">
-              {responsibilities.split("\n").map((line) => line.replace(/^[-•*]\s*/, "").trim()).filter(Boolean).map((line, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-brand-black">
-                  <span className="w-1.5 h-1.5 rounded-full bg-royal-purple mt-1.5 flex-shrink-0" />
-                  {line}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-brand-gray mb-4">Not filled in yet.</p>
-          )}
-
-          <p className="text-xs font-medium text-brand-gray uppercase tracking-wide mb-2">Key Skills</p>
-          {canEdit ? (
-            <textarea
-              value={skills}
-              onChange={(e) => setSkills(e.target.value)}
-              rows={2}
-              placeholder="Comma-separated, e.g. Paid Ads, SEO, Analytics, Copywriting"
-              className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y bg-white"
-            />
-          ) : skills ? (
-            <div className="flex flex-wrap gap-1.5">
-              {skills.split(/[,\n]/).map((s) => s.replace(/^[-•*]\s*/, "").trim()).filter(Boolean).map((s, i) => (
-                <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-lavender text-midnight-blue font-medium">{s}</span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-brand-gray">Not filled in yet.</p>
-          )}
-        </div>
-
         {[
           { label: "About Me", value: goals, set: setGoals, placeholder: "" },
           { label: "Hobbies/Interests", value: hobbies, set: setHobbies, placeholder: "" },
@@ -394,6 +363,80 @@ export default function TeamMemberPage() {
             )}
           </div>
         ))}
+        </>)}
+
+        {tab === "role" && (
+          <div>
+            {/* Position hero */}
+            <div className="rounded-xl bg-gradient-to-br from-royal-purple to-midnight-blue text-white p-6 mb-6">
+              <p className="text-[11px] uppercase tracking-widest text-white/70 mb-1">Position</p>
+              <h3 className="text-2xl font-bold font-heading">{person.title || "—"}</h3>
+              {(person.departments ?? []).length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {person.departments.map((pd) => (
+                    <span key={pd.department.id} className="text-xs px-2.5 py-1 rounded-full bg-white/15 border border-white/25">
+                      {pd.department.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Responsibilities */}
+            <div className="mb-8">
+              <h4 className="text-sm font-semibold font-heading text-brand-black mb-4">
+                What {person.name.split(" ")[0]} owns
+              </h4>
+              {canEdit ? (
+                <>
+                  <textarea
+                    value={responsibilities}
+                    onChange={(e) => setResponsibilities(e.target.value)}
+                    rows={10}
+                    placeholder={"One responsibility per line, e.g.\nLeads performance marketing\nOwns Klaviyo lifecycle flows\nManages ad budget allocation"}
+                    className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y bg-white"
+                  />
+                  <p className="text-[11px] text-brand-gray mt-1">One per line — each line becomes its own item. Remember to hit Save &amp; Back.</p>
+                </>
+              ) : responsibilities ? (
+                <ol className="space-y-0">
+                  {responsibilities.split("\n").map((line) => line.replace(/^[-•*]\s*/, "").trim()).filter(Boolean).map((line, i) => (
+                    <li key={i} className="flex items-start gap-4 py-3 border-b border-platinum/50 last:border-b-0">
+                      <span className="text-xs font-bold text-royal-purple/60 font-mono mt-0.5 w-6 flex-shrink-0">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <span className="text-[15px] leading-relaxed text-brand-black">{line}</span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="text-sm text-brand-gray">Not filled in yet.</p>
+              )}
+            </div>
+
+            {/* Skills */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold font-heading text-brand-black mb-3">Key Skills</h4>
+              {canEdit ? (
+                <textarea
+                  value={skills}
+                  onChange={(e) => setSkills(e.target.value)}
+                  rows={2}
+                  placeholder="Comma-separated, e.g. Paid Ads, SEO, Analytics, Copywriting"
+                  className="w-full px-3 py-2 border border-platinum rounded text-sm focus:outline-none focus:border-royal-purple resize-y bg-white"
+                />
+              ) : skills ? (
+                <div className="flex flex-wrap gap-2">
+                  {skills.split(/[,\n]/).map((s) => s.replace(/^[-•*]\s*/, "").trim()).filter(Boolean).map((s, i) => (
+                    <span key={i} className="text-sm px-3 py-1.5 rounded-full bg-lavender text-midnight-blue font-medium">{s}</span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-brand-gray">Not filled in yet.</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       <ConfirmDialog
         open={confirmDelete}
