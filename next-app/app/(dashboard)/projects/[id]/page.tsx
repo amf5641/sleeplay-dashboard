@@ -40,7 +40,16 @@ export default function ProjectDetailPage() {
   const { data: allUsers = [] } = useSWR<AppUser[]>("/api/users", fetcher);
   const { data: departments = [] } = useSWR<Department[]>("/api/departments", fetcher);
 
-  const [view, setView] = useState<"list" | "board" | "calendar" | "timeline">("list");
+  const [view, setViewState] = useState<"list" | "board" | "calendar" | "timeline">("list");
+  // Persist each agent's preferred view for this project (localStorage = per user)
+  useEffect(() => {
+    const saved = localStorage.getItem(`project-view:${id}`);
+    if (saved === "list" || saved === "board" || saved === "calendar" || saved === "timeline") setViewState(saved);
+  }, [id]);
+  const setView = (v: "list" | "board" | "calendar" | "timeline") => {
+    setViewState(v);
+    localStorage.setItem(`project-view:${id}`, v);
+  };
   const [taskFilter, setTaskFilter] = useState<"all" | "incomplete" | "complete">("incomplete");
   const [membersModal, setMembersModal] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
@@ -269,6 +278,11 @@ export default function ProjectDetailPage() {
 
   const openAddTask = () => {
     setTaskForm({ title: "", dueDate: "", priority: "medium", status: "On Track", notes: "", description: "", collaborators: [], section: "" });
+    setTaskModal(true);
+  };
+
+  const openAddTaskOnDate = (dateISO: string) => {
+    setTaskForm({ title: "", dueDate: dateISO, priority: "medium", status: "On Track", notes: "", description: "", collaborators: [], section: "" });
     setTaskModal(true);
   };
 
@@ -911,6 +925,7 @@ export default function ProjectDetailPage() {
               calMonth={calMonth}
               setCalMonth={setCalMonth}
               onSelectTask={(task) => setSelectedTask(task)}
+              onAddTask={openAddTaskOnDate}
             />
           ) : (
             <TimelineView
