@@ -94,16 +94,29 @@ model Person {
   taskCollaborations TaskCollaborator[]
   ptoRequests        PtoRequest[]       @relation("PtoRequests")
   ptoReviews         PtoRequest[]       @relation("PtoReviews")
+  departments        PersonDepartment[]
 }
 
 model Department {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  color     String    @default("#664FA6")
-  position  Int       @default(0)
-  createdAt DateTime  @default(now())
+  id        String             @id @default(cuid())
+  name      String             @unique
+  color     String             @default("#664FA6")
+  position  Int                @default(0)
+  createdAt DateTime           @default(now())
   projects  Project[]
   goals     Goal[]
+  members   PersonDepartment[]
+}
+
+model PersonDepartment {
+  id           String     @id @default(cuid())
+  personId     String
+  departmentId String
+  person       Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([personId, departmentId])
 }
 
 model Project {

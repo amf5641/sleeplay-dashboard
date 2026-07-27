@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import useSWR from "swr";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import Topbar from "@/components/topbar";
 import Modal from "@/components/modal";
@@ -38,6 +39,8 @@ export default function SettingsPage() {
   const userRole = (session?.user as Record<string, unknown>)?.role as string | undefined;
   const isAdmin = userRole === "admin";
   const { data: users = [], mutate } = useSWR<User[]>("/api/users", fetcher);
+  const { data: people = [] } = useSWR<{ id: string; email: string | null }[]>("/api/people", fetcher);
+  const personIdByEmail = new Map(people.filter((p) => p.email).map((p) => [p.email!.toLowerCase(), p.id]));
   const [addModal, setAddModal] = useState(false);
   const [inviteModal, setInviteModal] = useState(false);
   const [addForm, setAddForm] = useState({ email: "", password: "" });
@@ -207,7 +210,15 @@ export default function SettingsPage() {
             <tbody>
               {users.map((u) => (
                 <tr key={u.id} className="border-b border-platinum/50 last:border-b-0">
-                  <td className="px-4 py-3 text-sm">{u.email}</td>
+                  <td className="px-4 py-3 text-sm">
+                    {personIdByEmail.has(u.email.toLowerCase()) ? (
+                      <Link href={`/team/${personIdByEmail.get(u.email.toLowerCase())}`} className="text-royal-purple hover:underline">
+                        {u.email}
+                      </Link>
+                    ) : (
+                      u.email
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     {isAdmin ? (
                       <select

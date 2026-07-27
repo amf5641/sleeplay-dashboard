@@ -15,6 +15,7 @@ export async function GET(
     where: { id },
     include: {
       reports: { select: { id: true, name: true, title: true, photo: true } },
+      departments: { select: { department: { select: { id: true, name: true, color: true } } } },
       taskCollaborations: {
         select: {
           task: {
@@ -56,9 +57,27 @@ export async function PUT(
   const person = await prisma.person.findUnique({ where: { id }, select: { email: true } });
   const isOwnProfile = person?.email === user.email;
   const isAdmin = user.role === "admin" || user.email === "admin@sleeplay.com";
+  const isManager = user.role === "manager";
 
-  if (!isAdmin && !isOwnProfile) {
+  // Managers may manage department assignments for anyone
+  const onlyDepartments = Object.keys(body).every((k) => k === "departmentIds");
+  if (!isAdmin && !isOwnProfile && !(isManager && onlyDepartments)) {
     return Response.json({ error: "You can only edit your own profile" }, { status: 403 });
+  }
+
+  // Department assignments (admin or manager only — members can't move themselves)
+  if (body.departmentIds !== undefined) {
+    if (!isAdmin && !isManager) {
+      return Response.json({ error: "Only managers or admins can change departments" }, { status: 403 });
+    }
+    const ids = (body.departmentIds as string[]).filter(Boolean);
+    await prisma.personDepartment.deleteMany({ where: { personId: id } });
+    if (ids.length > 0) {
+      await prisma.personDepartment.createMany({
+        data: ids.map((departmentId) => ({ personId: id, departmentId })),
+        skipDuplicates: true,
+      });
+    }
   }
 
   // Admins can edit all fields; non-admins can only edit personal fields

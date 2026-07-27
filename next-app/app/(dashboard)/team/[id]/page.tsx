@@ -12,7 +12,8 @@ const ADMIN_EMAIL = "admin@sleeplay.com";
 
 interface DirectReport { id: string; name: string; title: string; photo: string | null }
 interface PersonProject { id: string; name: string; color: string; status: string }
-interface Person { id: string; name: string; email: string | null; title: string; location: string; photo: string | null; goals: string; hobbies: string; interests: string; responsibilities: string; skills: string; startDate: string | null; birthday: string | null; slack: string; phone: string; managerId: string | null; reports: DirectReport[]; projects: PersonProject[] }
+interface PersonDept { department: { id: string; name: string; color: string } }
+interface Person { id: string; name: string; email: string | null; title: string; location: string; photo: string | null; goals: string; hobbies: string; interests: string; responsibilities: string; skills: string; startDate: string | null; birthday: string | null; slack: string; phone: string; managerId: string | null; reports: DirectReport[]; projects: PersonProject[]; departments: PersonDept[] }
 interface PersonSummary { id: string; name: string }
 
 function resizeImage(file: File, maxSize: number): Promise<string> {
@@ -45,10 +46,24 @@ export default function TeamMemberPage() {
   const userEmail = session?.user?.email;
   const userRole = (session?.user as Record<string, unknown>)?.role as string | undefined;
   const isAdmin = userEmail === ADMIN_EMAIL || userRole === "admin";
+  const isManager = userRole === "manager";
+  const canManageDepartments = isAdmin || isManager;
   const { data: person, mutate } = useSWR<Person>(`/api/people/${id}`, fetcher);
   const isOwnProfile = person?.email === userEmail;
   const canEdit = isAdmin || isOwnProfile;
   const { data: allPeople = [] } = useSWR<PersonSummary[]>("/api/people", fetcher);
+  const { data: allDepartments = [] } = useSWR<{ id: string; name: string; color: string }[]>("/api/departments", fetcher);
+
+  const toggleDepartment = async (deptId: string) => {
+    const current = (person?.departments ?? []).map((d) => d.department.id);
+    const next = current.includes(deptId) ? current.filter((x) => x !== deptId) : [...current, deptId];
+    await fetch(`/api/people/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ departmentIds: next }),
+    });
+    mutate();
+  };
   const [goals, setGoals] = useState("");
   const [hobbies, setHobbies] = useState("");
   const [interests, setInterests] = useState("");
@@ -155,6 +170,45 @@ export default function TeamMemberPage() {
             </select>
           ) : (
             <p className="text-sm">{allPeople.find((p) => p.id === managerId)?.name ?? "None"}</p>
+          )}
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-brand-gray mb-2">Departments</label>
+          {canManageDepartments ? (
+            <div className="flex flex-wrap gap-2">
+              {allDepartments.map((d) => {
+                const active = (person.departments ?? []).some((pd) => pd.department.id === d.id);
+                return (
+                  <button
+                    key={d.id}
+                    onClick={() => toggleDepartment(d.id)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm transition-colors ${
+                      active ? "border-transparent text-white" : "border-platinum text-brand-gray hover:border-royal-purple bg-white"
+                    }`}
+                    style={active ? { backgroundColor: d.color } : undefined}
+                  >
+                    {!active && <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />}
+                    {d.name}
+                    {active && <span className="text-white/80">✓</span>}
+                  </button>
+                );
+              })}
+              {allDepartments.length === 0 && <p className="text-sm text-brand-gray">No departments created yet.</p>}
+            </div>
+          ) : (person.departments ?? []).length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {person.departments.map((pd) => (
+                <span key={pd.department.id} className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm text-white" style={{ backgroundColor: pd.department.color }}>
+                  {pd.department.name}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-brand-gray">—</p>
+          )}
+          {canManageDepartments && (
+            <p className="text-[11px] text-brand-gray mt-1.5">Members only see projects that belong to their departments (plus projects they&apos;re directly added to).</p>
           )}
         </div>
 

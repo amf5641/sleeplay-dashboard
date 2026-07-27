@@ -10,10 +10,24 @@ export async function GET(request: NextRequest) {
   const user = session.user as { email?: string; id?: string; role?: string };
   const filter = request.nextUrl.searchParams.get("filter");
 
-  // Admins see all projects; members only see projects they're invited to
-  const where = user.role === "admin" ? {} : {
-    members: { some: { user: { email: user.email } } },
-  };
+  // Admins see all projects. Everyone else sees projects in their assigned
+  // department(s) plus any project they're explicitly a member of.
+  let where = {};
+  if (user.role !== "admin" && user.email !== "admin@sleeplay.com") {
+    const person = user.email
+      ? await prisma.person.findUnique({
+          where: { email: user.email },
+          select: { departments: { select: { departmentId: true } } },
+        })
+      : null;
+    const deptIds = person?.departments.map((d) => d.departmentId) ?? [];
+    where = {
+      OR: [
+        { members: { some: { user: { email: user.email } } } },
+        ...(deptIds.length > 0 ? [{ departmentId: { in: deptIds } }] : []),
+      ],
+    };
+  }
 
   const projects = await prisma.project.findMany({
     where,
