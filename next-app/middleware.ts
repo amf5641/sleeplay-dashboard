@@ -19,5 +19,5 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ["/((?!login|api/auth|api/shopify|_next/static|_next/image|favicon.ico|sleeplay-logo.svg).*)"],
+  matcher: ["/((?!login|api/auth|api/shopify|api/klaviyo-upload|_next/static|_next/image|favicon.ico|sleeplay-logo.svg).*)"],
 };

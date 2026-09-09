@@ -10,7 +10,7 @@ import { ReactNode } from "react";
 
 const ic = "w-5 h-5 flex-shrink-0";
 
-const navItems: { href: string; label: string; icon: ReactNode }[] = [
+const navItems: { href: string; label: string; icon: ReactNode; external?: boolean }[] = [
   {
     href: "/",
     label: "Home",
@@ -60,6 +60,14 @@ const navItems: { href: string; label: string; icon: ReactNode }[] = [
     href: "/reports",
     label: "Reports",
     icon: <svg className={ic} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>,
+  },
+  {
+    // a standalone full-page report served by a route handler, so it opens in its own tab
+    // via a plain anchor rather than the client router
+    href: "/klaviyo",
+    label: "Klaviyo",
+    external: true,
+    icon: <svg className={ic} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>,
   },
   {
     href: "/pto",
@@ -123,6 +131,20 @@ export default function Sidebar() {
         {navItems.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const isNotifications = item.href === "/notifications";
+          if (item.external) {
+            return (
+              <a
+                key={item.href}
+                href={item.href}
+                target="_blank"
+                rel="noopener"
+                className="flex items-center gap-3 px-5 py-2.5 text-sm transition-colors text-white/70 hover:text-white hover:bg-white/5"
+              >
+                {item.icon}
+                <span className="flex-1">{item.label}</span>
+              </a>
+            );
+          }
           return (
             <Link
               key={item.href}
