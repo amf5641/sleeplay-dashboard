@@ -89,6 +89,7 @@ model Person {
   birthday           DateTime?
   slack              String             @default("")
   phone              String             @default("")
+  orgGroup           String             @default("") // org-chart sub-team grouping, e.g. "Warehouse"
   vacationAllowance  Float              @default(10)
   sickAllowance      Float              @default(5)
   taskCollaborations TaskCollaborator[]

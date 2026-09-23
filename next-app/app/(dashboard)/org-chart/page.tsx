@@ -10,7 +10,7 @@ const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 3;
 const ZOOM_FACTOR = 0.08;
 
-interface Person { id: string; name: string; title: string; location: string; managerId: string | null; photo: string | null }
+interface Person { id: string; name: string; title: string; location: string; managerId: string | null; photo: string | null; orgGroup?: string }
 
 const LINE = "#b8aed5";
 const VGAP = 24;
@@ -24,8 +24,47 @@ function Dot() {
   );
 }
 
+function GroupNode({ label, members, people, onClickPerson }: { label: string; members: Person[]; people: Person[]; onClickPerson: (id: string) => void }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div style={{ width: 2, height: VGAP, backgroundColor: LINE }} />
+      <Dot />
+      <div className="bg-white-smoke rounded-lg px-6 py-3 border-2 border-dashed border-platinum min-w-[180px] text-center">
+        <div className="font-semibold text-sm font-heading text-brand-gray">{label}</div>
+        <div className="text-[11px] text-brand-gray/70">{members.length} team member{members.length !== 1 ? "s" : ""}</div>
+      </div>
+      <div style={{ width: 2, height: VGAP, backgroundColor: LINE }} />
+      <Dot />
+      <div className="relative" style={{ display: "flex", gap: CHILD_GAP }}>
+        {members.length > 1 && (
+          <div
+            className="absolute pointer-events-none"
+            style={{ top: 0, height: 2, backgroundColor: LINE, left: `calc(100% / ${members.length} / 2)`, right: `calc(100% / ${members.length} / 2)` }}
+          />
+        )}
+        {members.map((m) => (
+          <div key={m.id} className="flex flex-col items-center">
+            <OrgNode person={m} people={people} onClickPerson={onClickPerson} isChild />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function OrgNode({ person, people, onClickPerson, isChild }: { person: Person; people: Person[]; onClickPerson: (id: string) => void; isChild?: boolean }) {
   const reports = people.filter((p) => p.managerId === person.id);
+  // Cluster direct reports that share an orgGroup label under a group node
+  const ungrouped = reports.filter((r) => !r.orgGroup);
+  const groups = new Map<string, Person[]>();
+  for (const r of reports) {
+    if (r.orgGroup) {
+      if (!groups.has(r.orgGroup)) groups.set(r.orgGroup, []);
+      groups.get(r.orgGroup)!.push(r);
+    }
+  }
+  const childCount = ungrouped.length + groups.size;
+
   return (
     <div className="flex flex-col items-center">
       {isChild && (
@@ -51,27 +90,30 @@ function OrgNode({ person, people, onClickPerson, isChild }: { person: Person; p
         {person.location && <div className="text-xs text-brand-gray mt-0.5">{person.location}</div>}
       </div>
 
-      {reports.length > 0 && (
+      {childCount > 0 && (
         <>
           <div style={{ width: 2, height: VGAP, backgroundColor: LINE }} />
           <Dot />
           <div className="relative" style={{ display: "flex", gap: CHILD_GAP }}>
-            {reports.length > 1 && (
+            {childCount > 1 && (
               <div
                 className="absolute pointer-events-none"
                 style={{
                   top: 0,
                   height: 2,
                   backgroundColor: LINE,
-                  left: `calc(100% / ${reports.length} / 2)`,
-                  right: `calc(100% / ${reports.length} / 2)`,
+                  left: `calc(100% / ${childCount} / 2)`,
+                  right: `calc(100% / ${childCount} / 2)`,
                 }}
               />
             )}
-            {reports.map((r) => (
+            {ungrouped.map((r) => (
               <div key={r.id} className="flex flex-col items-center">
                 <OrgNode person={r} people={people} onClickPerson={onClickPerson} isChild />
               </div>
+            ))}
+            {Array.from(groups.entries()).map(([label, members]) => (
+              <GroupNode key={label} label={label} members={members} people={people} onClickPerson={onClickPerson} />
             ))}
           </div>
         </>
