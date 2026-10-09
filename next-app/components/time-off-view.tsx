@@ -131,13 +131,15 @@ export default function TimeOffView({ mode }: { mode: "w2" | "contractors" }) {
   const currentYear = new Date().getFullYear();
   const contractorPeople = people.filter((p) => isContractor(p));
   const contractorSummary = contractorPeople.map((p) => {
-    const entries = requests.filter((r) => r.personId === p.id && r.status !== "rejected");
+    const all = requests.filter((r) => r.personId === p.id);
+    const pending = all.filter((r) => r.status === "pending").length;
+    const entries = all.filter((r) => r.status === "approved" || r.status === "logged");
     const thisYear = entries.filter((r) => new Date(r.startDate).getUTCFullYear() === currentYear);
     const todayISO = new Date().toISOString().slice(0, 10);
     const upcoming = entries
       .filter((r) => r.endDate.slice(0, 10) >= todayISO)
       .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
-    return { person: p, daysThisYear: thisYear.reduce((sum, r) => sum + r.days, 0), entries: thisYear.length, upcoming };
+    return { person: p, daysThisYear: thisYear.reduce((sum, r) => sum + r.days, 0), entries: thisYear.length, upcoming, pending };
   });
 
   const modePeople = people.filter((p) => (mode === "contractors" ? isContractor(p) : !isContractor(p)));
@@ -188,7 +190,7 @@ export default function TimeOffView({ mode }: { mode: "w2" | "contractors" }) {
     });
     setSaving(false);
     if (error) { toast(error, "error"); return; }
-    toast(isEdit ? "Updated" : formContractor ? "Time out logged" : "PTO request submitted", "success");
+    toast(isEdit ? "Updated" : formContractor ? "Time out request submitted" : "PTO request submitted", "success");
     setModalOpen(false);
     resetForm();
     mutate();
@@ -202,7 +204,7 @@ export default function TimeOffView({ mode }: { mode: "w2" | "contractors" }) {
       body: JSON.stringify({ status, reviewerId }),
     });
     if (error) { toast(error, "error"); return; }
-    toast(`Request ${status}`, "success");
+    toast(`Request ${mode === "contractors" && status === "approved" ? "confirmed" : status}`, "success");
     mutate();
     mutateBalance();
     mutateAllBalances();
@@ -246,7 +248,7 @@ export default function TimeOffView({ mode }: { mode: "w2" | "contractors" }) {
           <p className="text-xs text-brand-gray truncate">{req.person.title}</p>
         </div>
         <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusColors[req.status] || ""}`}>
-          {req.status}
+          {isContractor(req.person) && req.status === "approved" ? "confirmed" : req.status}
         </span>
       </div>
 
@@ -281,7 +283,7 @@ export default function TimeOffView({ mode }: { mode: "w2" | "contractors" }) {
                 onClick={() => updateStatus(req.id, "approved")}
                 className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
               >
-                Approve
+                {isContractor(req.person) ? "Confirm" : "Approve"}
               </button>
               <button
                 onClick={() => updateStatus(req.id, "rejected")}
@@ -336,7 +338,7 @@ export default function TimeOffView({ mode }: { mode: "w2" | "contractors" }) {
                 onClick={() => setModalOpen(true)}
                 className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue transition-colors"
               >
-                {mode === "contractors" ? "+ Log Time Out" : "+ New Request"}
+                {mode === "contractors" ? "+ Request Time Out" : "+ New Request"}
               </button>
             )}
           </div>
@@ -382,7 +384,7 @@ export default function TimeOffView({ mode }: { mode: "w2" | "contractors" }) {
                         {ptoForDay.slice(0, 3).map((r) => (
                           <div
                             key={r.id}
-                            className={`text-[10px] px-1 py-0.5 rounded truncate ${isContractor(r.person) ? "bg-gray-100 text-gray-700" : r.status === "approved" ? (r.type === "vacation" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700") : "bg-yellow-100 text-yellow-700"}`}
+                            className={`text-[10px] px-1 py-0.5 rounded truncate ${isContractor(r.person) ? (r.status === "pending" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-700") : r.status === "approved" ? (r.type === "vacation" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700") : "bg-yellow-100 text-yellow-700"}`}
                             title={`${r.person.name} — ${r.type} (${r.status})`}
                           >
                             {r.person.name.split(" ")[0]}
@@ -570,7 +572,7 @@ export default function TimeOffView({ mode }: { mode: "w2" | "contractors" }) {
         {mode === "contractors" && (
           <section>
             <h2 className="text-base font-semibold font-heading text-brand-black mb-1">1099 Contractors, Time Out</h2>
-            <p className="text-xs text-brand-gray mb-4">No allowance or approval. Contractors log the days they will be out so the team knows; days are tracked here.</p>
+            <p className="text-xs text-brand-gray mb-4">No allowance. Contractors request the days they will be out; admin confirms, and confirmed days are tracked here.</p>
 
             {isAdmin && contractorSummary.length > 0 && (
               <div className="bg-white rounded-lg shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50 mb-6 overflow-hidden">
@@ -580,11 +582,12 @@ export default function TimeOffView({ mode }: { mode: "w2" | "contractors" }) {
                       <th className="px-5 py-2.5 font-medium">Contractor</th>
                       <th className="px-5 py-2.5 font-medium text-center">Days out in {currentYear}</th>
                       <th className="px-5 py-2.5 font-medium text-center">Entries</th>
+                      <th className="px-5 py-2.5 font-medium text-center">Pending</th>
                       <th className="px-5 py-2.5 font-medium">Next time out</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {contractorSummary.map(({ person: p, daysThisYear, entries, upcoming }) => (
+                    {contractorSummary.map(({ person: p, daysThisYear, entries, upcoming, pending }) => (
                       <tr key={p.id} className="border-b border-platinum/50 last:border-0">
                         <td className="px-5 py-2.5">
                           <span className="font-medium text-brand-black">{p.name}</span>
@@ -592,6 +595,9 @@ export default function TimeOffView({ mode }: { mode: "w2" | "contractors" }) {
                         </td>
                         <td className="px-5 py-2.5 text-center text-brand-black">{daysThisYear}</td>
                         <td className="px-5 py-2.5 text-center text-brand-gray">{entries}</td>
+                        <td className="px-5 py-2.5 text-center">
+                          {pending > 0 ? <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">{pending}</span> : <span className="text-brand-gray">0</span>}
+                        </td>
                         <td className="px-5 py-2.5 text-brand-gray">
                           {upcoming ? `${formatDate(upcoming.startDate)}${upcoming.endDate.slice(0, 10) !== upcoming.startDate.slice(0, 10) ? " to " + formatDate(upcoming.endDate) : ""}` : "None scheduled"}
                         </td>
@@ -624,7 +630,7 @@ export default function TimeOffView({ mode }: { mode: "w2" | "contractors" }) {
         )}
       </div>
 
-      <Modal open={modalOpen} onClose={() => { setModalOpen(false); resetForm(); }} title={formContractor ? (editingId ? "Edit Time Out" : "Log Time Out") : (editingId ? "Edit PTO Request" : "New PTO Request")}>
+      <Modal open={modalOpen} onClose={() => { setModalOpen(false); resetForm(); }} title={formContractor ? (editingId ? "Edit Time Out Request" : "Request Time Out") : (editingId ? "Edit PTO Request" : "New PTO Request")}>
         <div className="space-y-3">
           {isAdmin ? (
             <div>
@@ -654,7 +660,7 @@ export default function TimeOffView({ mode }: { mode: "w2" | "contractors" }) {
 
           {formContractor ? (
             <p className="text-xs text-brand-gray bg-white-smoke rounded px-3 py-2">
-              1099 contractor: this logs the days you will be out. No approval needed.
+              1099 contractor: this requests the days you will be out. Admin will review and confirm it.
             </p>
           ) : (
           <div>
@@ -739,7 +745,7 @@ export default function TimeOffView({ mode }: { mode: "w2" | "contractors" }) {
             disabled={saving || !form.personId || !form.startDate || !form.endDate || days <= 0}
             className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? "Saving..." : editingId ? "Save Changes" : formContractor ? "Log Time Out" : "Submit Request"}
+            {saving ? "Saving..." : editingId ? "Save Changes" : "Submit Request"}
           </button>
         </div>
       </Modal>

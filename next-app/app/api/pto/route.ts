@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       endDate: new Date(body.endDate),
       days: body.days,
       note: body.note ?? "",
-      status: isContractor ? "logged" : "pending",
+      status: "pending",
     },
     include: { person: { select: { name: true, title: true } } },
   });
@@ -84,13 +84,13 @@ export async function POST(request: NextRequest) {
   const person = ptoRequest.person;
   const typeLabel = isContractor ? "Time out" : ptoRequest.type === "sick" ? "Sick" : "Vacation";
   const subject = isContractor
-    ? `Time Out Notice: ${person.name} — ${ptoRequest.days} day${ptoRequest.days !== 1 ? "s" : ""}`
+    ? `Time Out Request: ${person.name} — ${ptoRequest.days} day${ptoRequest.days !== 1 ? "s" : ""}`
     : `PTO Request: ${person.name} — ${ptoRequest.days} ${typeLabel} day${ptoRequest.days !== 1 ? "s" : ""}`;
   const html = `
     <div style="font-family: -apple-system, system-ui, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
-      <h2 style="color: #181818; font-size: 20px; margin: 0 0 16px;">${isContractor ? "Time Out Notice (1099)" : "New PTO Request"}</h2>
+      <h2 style="color: #181818; font-size: 20px; margin: 0 0 16px;">${isContractor ? "New Time Out Request (1099)" : "New PTO Request"}</h2>
       <p style="color: #4b5563; font-size: 14px; margin: 0 0 20px;">
-        <strong>${person.name}</strong>${person.title ? ` (${person.title})` : ""} ${isContractor ? "logged days they will be out. No approval needed." : "submitted a PTO request and is waiting for your approval."}
+        <strong>${person.name}</strong>${person.title ? ` (${person.title})` : ""} ${isContractor ? "requested time out and is waiting for your confirmation." : "submitted a PTO request and is waiting for your approval."}
       </p>
       <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 20px;">
         <tr><td style="padding: 6px 0; color: #6b7280; width: 120px;">Type</td><td style="padding: 6px 0; color: #181818;"><strong>${typeLabel}</strong></td></tr>
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       </table>
       <a href="${PORTAL_URL}/pto" style="display: inline-block; background: #664FA6; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 500;">Review in portal</a>
       <p style="color: #9ca3af; font-size: 12px; margin: 20px 0 0;">
-        Log in as <strong>admin@sleeplay.com</strong> to approve or reject this request.
+        Log in as <strong>admin@sleeplay.com</strong> to ${isContractor ? "confirm" : "approve"} or reject this request.
       </p>
     </div>
   `;
