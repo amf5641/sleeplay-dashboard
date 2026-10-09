@@ -91,6 +91,7 @@ model Person {
   phone              String             @default("")
   orgGroup           String             @default("") // org-chart sub-team grouping, e.g. "Warehouse"
   ptoEligible        Boolean            @default(true)
+  employmentType     String             @default("w2") // "w2" | "1099"
   vacationAllowance  Float              @default(10)
   sickAllowance      Float              @default(5)
   taskCollaborations TaskCollaborator[]

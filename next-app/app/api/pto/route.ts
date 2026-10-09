@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
   const requests = await prisma.ptoRequest.findMany({
     where: { ...where, person: { ptoEligible: true } },
     include: {
-      person: { select: { id: true, name: true, title: true, photo: true, email: true } },
+      person: { select: { id: true, name: true, title: true, photo: true, email: true, employmentType: true } },
       reviewer: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -60,32 +60,37 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const target = await prisma.person.findUnique({ where: { id: body.personId }, select: { ptoEligible: true } });
+  const target = await prisma.person.findUnique({ where: { id: body.personId }, select: { ptoEligible: true, employmentType: true } });
   if (!target?.ptoEligible) {
     return Response.json({ error: "PTO is not tracked in the portal for this employee" }, { status: 403 });
   }
+  // 1099 contractors log time out as a notice: no PTO type, no approval step
+  const isContractor = target.employmentType === "1099";
 
   const ptoRequest = await prisma.ptoRequest.create({
     data: {
       personId: body.personId,
-      type: body.type ?? "vacation",
+      type: isContractor ? "out" : (body.type ?? "vacation"),
       startDate: new Date(body.startDate),
       endDate: new Date(body.endDate),
       days: body.days,
       note: body.note ?? "",
+      status: isContractor ? "logged" : "pending",
     },
     include: { person: { select: { name: true, title: true } } },
   });
 
   // Fire-and-forget email notification to admin
   const person = ptoRequest.person;
-  const typeLabel = ptoRequest.type === "sick" ? "Sick" : "Vacation";
-  const subject = `PTO Request: ${person.name} — ${ptoRequest.days} ${typeLabel} day${ptoRequest.days !== 1 ? "s" : ""}`;
+  const typeLabel = isContractor ? "Time out" : ptoRequest.type === "sick" ? "Sick" : "Vacation";
+  const subject = isContractor
+    ? `Time Out Notice: ${person.name} — ${ptoRequest.days} day${ptoRequest.days !== 1 ? "s" : ""}`
+    : `PTO Request: ${person.name} — ${ptoRequest.days} ${typeLabel} day${ptoRequest.days !== 1 ? "s" : ""}`;
   const html = `
     <div style="font-family: -apple-system, system-ui, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
-      <h2 style="color: #181818; font-size: 20px; margin: 0 0 16px;">New PTO Request</h2>
+      <h2 style="color: #181818; font-size: 20px; margin: 0 0 16px;">${isContractor ? "Time Out Notice (1099)" : "New PTO Request"}</h2>
       <p style="color: #4b5563; font-size: 14px; margin: 0 0 20px;">
-        <strong>${person.name}</strong>${person.title ? ` (${person.title})` : ""} submitted a PTO request and is waiting for your approval.
+        <strong>${person.name}</strong>${person.title ? ` (${person.title})` : ""} ${isContractor ? "logged days they will be out. No approval needed." : "submitted a PTO request and is waiting for your approval."}
       </p>
       <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 20px;">
         <tr><td style="padding: 6px 0; color: #6b7280; width: 120px;">Type</td><td style="padding: 6px 0; color: #181818;"><strong>${typeLabel}</strong></td></tr>

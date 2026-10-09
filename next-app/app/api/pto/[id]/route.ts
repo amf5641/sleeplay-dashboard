@@ -54,7 +54,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const owner = existing.person.email === ctx.user.email;
   if (!ctx.isAdmin) {
     if (!owner) return Response.json({ error: "You can only edit your own requests" }, { status: 403 });
-    if (existing.status !== "pending") {
+    if (existing.status !== "pending" && existing.status !== "logged") {
       return Response.json({ error: "Only pending requests can be edited" }, { status: 403 });
     }
   }
@@ -86,7 +86,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   const owner = existing.person.email === ctx.user.email;
   if (!ctx.isAdmin) {
     if (!owner) return Response.json({ error: "You can only cancel your own requests" }, { status: 403 });
-    if (existing.status !== "pending") {
+    if (existing.status !== "pending" && existing.status !== "logged") {
       return Response.json({ error: "Only pending requests can be cancelled" }, { status: 403 });
     }
   }

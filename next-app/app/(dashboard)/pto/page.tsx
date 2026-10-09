@@ -17,6 +17,7 @@ interface Person {
   photo: string | null;
   email: string | null;
   ptoEligible?: boolean;
+  employmentType?: string;
 }
 
 interface PtoRequest {
@@ -53,12 +54,16 @@ const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
   approved: "bg-green-100 text-green-800",
   rejected: "bg-red-100 text-red-800",
+  logged: "bg-gray-100 text-gray-700",
 };
 
 const typeColors: Record<string, string> = {
   vacation: "bg-blue-100 text-blue-800",
   sick: "bg-orange-100 text-orange-800",
+  out: "bg-gray-100 text-gray-700",
 };
+
+const isContractor = (p?: { employmentType?: string } | null) => p?.employmentType === "1099";
 
 function calcDays(start: string, end: string): number {
   if (!start || !end) return 0;
@@ -94,14 +99,15 @@ export default function PtoPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const { data: requests = [], mutate } = useSWR<PtoRequest[]>(`/api/pto?status=${filter}`, fetcher);
+  const { data: requests = [], mutate } = useSWR<PtoRequest[]>("/api/pto?status=all", fetcher);
   const { data: allPeople = [] } = useSWR<Person[]>("/api/people", fetcher);
   const people = allPeople.filter((p) => p.ptoEligible !== false);
 
   const myPerson = people.find((p) => p.email === userEmail);
+  const meContractor = isContractor(myPerson);
 
   const { data: balance, mutate: mutateBalance } = useSWR<PtoBalance>(
-    myPerson ? `/api/pto/balance?personId=${myPerson.id}` : null,
+    myPerson && !meContractor ? `/api/pto/balance?personId=${myPerson.id}` : null,
     fetcher
   );
 
@@ -119,6 +125,23 @@ export default function PtoPage() {
   const filtered = requests.filter(
     (r) => r.person.name.toLowerCase().includes(search.toLowerCase())
   );
+  const w2Requests = filtered.filter((r) => !isContractor(r.person) && (filter === "all" || r.status === filter));
+  const contractorRequests = filtered.filter((r) => isContractor(r.person));
+
+  const currentYear = new Date().getFullYear();
+  const contractorPeople = people.filter((p) => isContractor(p));
+  const contractorSummary = contractorPeople.map((p) => {
+    const entries = requests.filter((r) => r.personId === p.id && r.status !== "rejected");
+    const thisYear = entries.filter((r) => new Date(r.startDate).getUTCFullYear() === currentYear);
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const upcoming = entries
+      .filter((r) => r.endDate.slice(0, 10) >= todayISO)
+      .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
+    return { person: p, daysThisYear: thisYear.reduce((sum, r) => sum + r.days, 0), entries: thisYear.length, upcoming };
+  });
+
+  const formPerson = people.find((p) => p.id === form.personId);
+  const formContractor = isContractor(formPerson);
 
   const rawDays = calcDays(form.startDate, form.endDate);
   const days = halfDay ? rawDays - 0.5 : rawDays;
@@ -162,7 +185,7 @@ export default function PtoPage() {
     });
     setSaving(false);
     if (error) { toast(error, "error"); return; }
-    toast(isEdit ? "PTO request updated" : "PTO request submitted", "success");
+    toast(isEdit ? "Updated" : formContractor ? "Time out logged" : "PTO request submitted", "success");
     setModalOpen(false);
     resetForm();
     mutate();
@@ -185,7 +208,7 @@ export default function PtoPage() {
   const deleteRequest = async (id: string) => {
     const { error } = await apiFetch(`/api/pto/${id}`, { method: "DELETE" });
     if (error) { toast(error, "error"); return; }
-    toast("PTO request cancelled", "success");
+    toast("Removed", "success");
     mutate();
     mutateBalance();
     mutateAllBalances();
@@ -201,6 +224,97 @@ export default function PtoPage() {
     toast("Allowance updated", "success");
     mutateAllBalances();
   };
+
+  const renderCard = (req: PtoRequest) => (
+    <div
+      key={req.id}
+      className="bg-white rounded-lg p-5 shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50"
+    >
+      <div className="flex items-center gap-3 mb-3">
+        {req.person.photo ? (
+          <img src={req.person.photo} alt="" className="w-9 h-9 rounded-full object-cover" />
+        ) : (
+          <div className="w-9 h-9 rounded-full bg-lavender text-midnight-blue flex items-center justify-center text-sm font-semibold">
+            {req.person.name.charAt(0)}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold font-heading text-brand-black text-sm truncate">{req.person.name}</p>
+          <p className="text-xs text-brand-gray truncate">{req.person.title}</p>
+        </div>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusColors[req.status] || ""}`}>
+          {req.status}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2 mb-2">
+        <span className={`text-xs px-2 py-0.5 rounded font-medium capitalize ${typeColors[req.type] || ""}`}>
+          {req.type === "out" ? "Time out" : req.type}
+        </span>
+        <span className="text-xs text-brand-gray">
+          {req.days} day{req.days !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      <p className="text-sm text-brand-black mb-1">
+        {formatDate(req.startDate)} — {formatDate(req.endDate)}
+      </p>
+
+      {req.note && (
+        <p className="text-xs text-brand-gray mb-2 line-clamp-2">{req.note}</p>
+      )}
+
+      {req.reviewer && (
+        <p className="text-xs text-brand-gray mb-2">
+          Reviewed by {req.reviewer.name}
+        </p>
+      )}
+
+      {isAdmin && (
+        <div className="flex gap-2 mt-3 pt-3 border-t border-platinum">
+          {req.status === "pending" && (
+            <>
+              <button
+                onClick={() => updateStatus(req.id, "approved")}
+                className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => updateStatus(req.id, "rejected")}
+                className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+              >
+                Reject
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => deleteRequest(req.id)}
+            className="px-3 py-1.5 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+          >
+            Delete
+          </button>
+        </div>
+      )}
+
+      {!isAdmin && req.person.email === userEmail && (req.status === "pending" || req.status === "logged") && (
+        <div className="flex gap-2 mt-3 pt-3 border-t border-platinum">
+          <button
+            onClick={() => openEditModal(req)}
+            className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-royal-purple/10 text-royal-purple hover:bg-royal-purple/20 transition-colors"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => deleteRequest(req.id)}
+            className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <>
@@ -219,7 +333,7 @@ export default function PtoPage() {
                 onClick={() => setModalOpen(true)}
                 className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue transition-colors"
               >
-                + New Request
+                {!isAdmin && meContractor ? "+ Log Time Out" : "+ New Request"}
               </button>
             )}
           </div>
@@ -230,7 +344,7 @@ export default function PtoPage() {
           const year = calMonth.getFullYear();
           const month = calMonth.getMonth();
 
-          const approvedRequests = requests.filter((r) => r.status === "approved" || r.status === "pending");
+          const approvedRequests = requests.filter((r) => r.status === "approved" || r.status === "pending" || r.status === "logged");
 
           const getPtoForDay = (date: Date) => {
             const dayOfWeek = date.getDay();
@@ -265,7 +379,7 @@ export default function PtoPage() {
                         {ptoForDay.slice(0, 3).map((r) => (
                           <div
                             key={r.id}
-                            className={`text-[10px] px-1 py-0.5 rounded truncate ${r.status === "approved" ? (r.type === "vacation" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700") : "bg-yellow-100 text-yellow-700"}`}
+                            className={`text-[10px] px-1 py-0.5 rounded truncate ${isContractor(r.person) ? "bg-gray-100 text-gray-700" : r.status === "approved" ? (r.type === "vacation" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700") : "bg-yellow-100 text-yellow-700"}`}
                             title={`${r.person.name} — ${r.type} (${r.status})`}
                           >
                             {r.person.name.split(" ")[0]}
@@ -283,6 +397,7 @@ export default function PtoPage() {
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-blue-100 border border-blue-200" /> Vacation (approved)</div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-orange-100 border border-orange-200" /> Sick (approved)</div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-yellow-100 border border-yellow-200" /> Pending</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-gray-100 border border-gray-200" /> 1099 time out</div>
               </div>
             </>
           );
@@ -291,7 +406,7 @@ export default function PtoPage() {
         {isAdmin && allBalances.length > 0 && (
           <div className="bg-white rounded-lg shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50 mb-6 overflow-hidden">
             <div className="px-5 py-3 border-b border-platinum bg-white-smoke">
-              <h2 className="text-sm font-semibold font-heading text-brand-black">Employee PTO Balances</h2>
+              <h2 className="text-sm font-semibold font-heading text-brand-black">PTO Balances, W-2 Employees</h2>
             </div>
             <table className="w-full text-sm">
               <thead>
@@ -421,123 +536,92 @@ export default function PtoPage() {
           </div>
         )}
 
-        <div className="flex gap-2 mb-6">
-          {["all", "pending", "approved", "rejected"].map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 text-sm rounded capitalize ${
-                filter === f
-                  ? "bg-midnight-blue text-white"
-                  : "bg-white text-brand-gray border border-platinum hover:bg-white-smoke"
-              }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-
-        {filtered.length === 0 ? (
-          <EmptyState title="No PTO requests" description="Submit a request to get started." />
-        ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
-            {filtered.map((req) => (
-              <div
-                key={req.id}
-                className="bg-white rounded-lg p-5 shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50"
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  {req.person.photo ? (
-                    <img src={req.person.photo} alt="" className="w-9 h-9 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-9 h-9 rounded-full bg-lavender text-midnight-blue flex items-center justify-center text-sm font-semibold">
-                      {req.person.name.charAt(0)}
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold font-heading text-brand-black text-sm truncate">{req.person.name}</p>
-                    <p className="text-xs text-brand-gray truncate">{req.person.title}</p>
-                  </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusColors[req.status] || ""}`}>
-                    {req.status}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`text-xs px-2 py-0.5 rounded font-medium capitalize ${typeColors[req.type] || ""}`}>
-                    {req.type}
-                  </span>
-                  <span className="text-xs text-brand-gray">
-                    {req.days} day{req.days !== 1 ? "s" : ""}
-                  </span>
-                </div>
-
-                <p className="text-sm text-brand-black mb-1">
-                  {formatDate(req.startDate)} — {formatDate(req.endDate)}
-                </p>
-
-                {req.note && (
-                  <p className="text-xs text-brand-gray mb-2 line-clamp-2">{req.note}</p>
-                )}
-
-                {req.reviewer && (
-                  <p className="text-xs text-brand-gray mb-2">
-                    Reviewed by {req.reviewer.name}
-                  </p>
-                )}
-
-                {isAdmin && (
-                  <div className="flex gap-2 mt-3 pt-3 border-t border-platinum">
-                    {req.status === "pending" && (
-                      <>
-                        <button
-                          onClick={() => updateStatus(req.id, "approved")}
-                          className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => updateStatus(req.id, "rejected")}
-                          className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => deleteRequest(req.id)}
-                      className="px-3 py-1.5 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
-
-                {!isAdmin && req.person.email === userEmail && req.status === "pending" && (
-                  <div className="flex gap-2 mt-3 pt-3 border-t border-platinum">
-                    <button
-                      onClick={() => openEditModal(req)}
-                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-royal-purple/10 text-royal-purple hover:bg-royal-purple/20 transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deleteRequest(req.id)}
-                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
+        {(isAdmin || !meContractor) && (
+          <section className="mb-10">
+            <h2 className="text-base font-semibold font-heading text-brand-black mb-3">PTO, W-2 Employees</h2>
+            <div className="flex gap-2 mb-4">
+              {["all", "pending", "approved", "rejected"].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-4 py-1.5 text-sm rounded capitalize ${
+                    filter === f
+                      ? "bg-midnight-blue text-white"
+                      : "bg-white text-brand-gray border border-platinum hover:bg-white-smoke"
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+            {w2Requests.length === 0 ? (
+              <EmptyState title="No PTO requests" description="Submit a request to get started." />
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
+                {w2Requests.map((req) => renderCard(req))}
               </div>
-            ))}
-          </div>
+            )}
+          </section>
+        )}
+
+        {(isAdmin || meContractor) && (
+          <section>
+            <h2 className="text-base font-semibold font-heading text-brand-black mb-1">1099 Contractors, Time Out</h2>
+            <p className="text-xs text-brand-gray mb-4">No allowance or approval. Contractors log the days they will be out so the team knows; days are tracked here.</p>
+
+            {isAdmin && contractorSummary.length > 0 && (
+              <div className="bg-white rounded-lg shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50 mb-6 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-platinum text-left text-xs text-brand-gray bg-white-smoke">
+                      <th className="px-5 py-2.5 font-medium">Contractor</th>
+                      <th className="px-5 py-2.5 font-medium text-center">Days out in {currentYear}</th>
+                      <th className="px-5 py-2.5 font-medium text-center">Entries</th>
+                      <th className="px-5 py-2.5 font-medium">Next time out</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {contractorSummary.map(({ person: p, daysThisYear, entries, upcoming }) => (
+                      <tr key={p.id} className="border-b border-platinum/50 last:border-0">
+                        <td className="px-5 py-2.5">
+                          <span className="font-medium text-brand-black">{p.name}</span>
+                          {p.title && <span className="text-xs text-brand-gray ml-1.5">({p.title})</span>}
+                        </td>
+                        <td className="px-5 py-2.5 text-center text-brand-black">{daysThisYear}</td>
+                        <td className="px-5 py-2.5 text-center text-brand-gray">{entries}</td>
+                        <td className="px-5 py-2.5 text-brand-gray">
+                          {upcoming ? `${formatDate(upcoming.startDate)}${upcoming.endDate.slice(0, 10) !== upcoming.startDate.slice(0, 10) ? " to " + formatDate(upcoming.endDate) : ""}` : "None scheduled"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {!isAdmin && meContractor && (
+              <div className="bg-white rounded-lg p-4 shadow-[0_4px_34px_rgba(0,0,0,0.05)] border border-platinum/50 mb-6 max-w-sm">
+                <p className="text-sm font-semibold font-heading text-brand-black">Days out in {currentYear}</p>
+                <p className="text-2xl font-bold text-brand-black mt-1">
+                  {contractorSummary.find((c) => c.person.id === myPerson?.id)?.daysThisYear ?? 0}
+                </p>
+              </div>
+            )}
+
+            {contractorRequests.length === 0 ? (
+              <EmptyState title="No time out logged" description="Log the days you will be out to let the team know." />
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
+                {contractorRequests.map((req) => renderCard(req))}
+              </div>
+            )}
+          </section>
         )}
         </>
         )}
       </div>
 
-      <Modal open={modalOpen} onClose={() => { setModalOpen(false); resetForm(); }} title={editingId ? "Edit PTO Request" : "New PTO Request"}>
+      <Modal open={modalOpen} onClose={() => { setModalOpen(false); resetForm(); }} title={formContractor ? (editingId ? "Edit Time Out" : "Log Time Out") : (editingId ? "Edit PTO Request" : "New PTO Request")}>
         <div className="space-y-3">
           {isAdmin ? (
             <div>
@@ -565,6 +649,11 @@ export default function PtoPage() {
             </div>
           )}
 
+          {formContractor ? (
+            <p className="text-xs text-brand-gray bg-white-smoke rounded px-3 py-2">
+              1099 contractor: this logs the days you will be out. No approval needed.
+            </p>
+          ) : (
           <div>
             <label className="block text-xs font-medium text-brand-gray mb-1">Type</label>
             <div className="flex gap-2">
@@ -584,6 +673,7 @@ export default function PtoPage() {
               ))}
             </div>
           </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -646,7 +736,7 @@ export default function PtoPage() {
             disabled={saving || !form.personId || !form.startDate || !form.endDate || days <= 0}
             className="px-4 py-2 text-sm rounded bg-royal-purple text-white hover:bg-midnight-blue disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? "Saving..." : editingId ? "Save Changes" : "Submit Request"}
+            {saving ? "Saving..." : editingId ? "Save Changes" : formContractor ? "Log Time Out" : "Submit Request"}
           </button>
         </div>
       </Modal>
