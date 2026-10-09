@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   }
 
   const requests = await prisma.ptoRequest.findMany({
-    where,
+    where: { ...where, person: { ptoEligible: true } },
     include: {
       person: { select: { id: true, name: true, title: true, photo: true, email: true } },
       reviewer: { select: { id: true, name: true } },
@@ -58,6 +58,11 @@ export async function POST(request: NextRequest) {
     if (!person || person.id !== body.personId) {
       return Response.json({ error: "You can only create requests for yourself" }, { status: 403 });
     }
+  }
+
+  const target = await prisma.person.findUnique({ where: { id: body.personId }, select: { ptoEligible: true } });
+  if (!target?.ptoEligible) {
+    return Response.json({ error: "PTO is not tracked in the portal for this employee" }, { status: 403 });
   }
 
   const ptoRequest = await prisma.ptoRequest.create({

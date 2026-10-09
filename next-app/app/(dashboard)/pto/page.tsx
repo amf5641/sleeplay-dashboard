@@ -16,6 +16,7 @@ interface Person {
   title: string;
   photo: string | null;
   email: string | null;
+  ptoEligible?: boolean;
 }
 
 interface PtoRequest {
@@ -94,7 +95,8 @@ export default function PtoPage() {
   const { toast } = useToast();
 
   const { data: requests = [], mutate } = useSWR<PtoRequest[]>(`/api/pto?status=${filter}`, fetcher);
-  const { data: people = [] } = useSWR<Person[]>("/api/people", fetcher);
+  const { data: allPeople = [] } = useSWR<Person[]>("/api/people", fetcher);
+  const people = allPeople.filter((p) => p.ptoEligible !== false);
 
   const myPerson = people.find((p) => p.email === userEmail);
 
@@ -212,12 +214,14 @@ export default function PtoPage() {
           <div className="flex gap-2 items-center">
             <button onClick={() => setView("list")} className={`px-3 py-1.5 text-sm rounded ${view === "list" ? "bg-midnight-blue text-white" : "bg-platinum hover:bg-lavender"}`}>List</button>
             <button onClick={() => setView("calendar")} className={`px-3 py-1.5 text-sm rounded ${view === "calendar" ? "bg-midnight-blue text-white" : "bg-platinum hover:bg-lavender"}`}>Calendar</button>
-            <button
-              onClick={() => setModalOpen(true)}
-              className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue transition-colors"
-            >
-              + New Request
-            </button>
+            {(isAdmin || myPerson) && (
+              <button
+                onClick={() => setModalOpen(true)}
+                className="px-4 py-1.5 bg-royal-purple text-white text-sm rounded hover:bg-midnight-blue transition-colors"
+              >
+                + New Request
+              </button>
+            )}
           </div>
         }
       />

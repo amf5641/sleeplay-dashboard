@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
   const isAdmin = user.email === ADMIN_EMAIL || user.role === "admin";
   if (all === "true" && isAdmin) {
     const people = await prisma.person.findMany({
+      where: { ptoEligible: true },
       select: { id: true, name: true, title: true, photo: true, vacationAllowance: true, sickAllowance: true },
       orderBy: { name: "asc" },
     });
