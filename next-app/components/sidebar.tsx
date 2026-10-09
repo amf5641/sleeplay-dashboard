@@ -7,6 +7,7 @@ import Image from "next/image";
 import useSWR from "swr";
 import { fetcher } from "@/lib/utils";
 import { ReactNode } from "react";
+import { useRole } from "@/hooks/use-role";
 
 const ic = "w-5 h-5 flex-shrink-0";
 
@@ -75,6 +76,11 @@ const navItems: { href: string; label: string; icon: ReactNode; external?: boole
     icon: <svg className={ic} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>,
   },
   {
+    href: "/contractors",
+    label: "Contractors",
+    icon: <svg className={ic} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>,
+  },
+  {
     href: "/settings",
     label: "Settings",
     icon: <svg className={ic} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>,
@@ -105,6 +111,9 @@ export default function Sidebar() {
   const { data: notifications = [] } = useSWR<Notification[]>("/api/notifications", fetcher, { refreshInterval: 30000 });
   const { data: projects = [] } = useSWR<SidebarProject[]>("/api/projects", fetcher);
   const { data: departments = [] } = useSWR<SidebarDepartment[]>("/api/departments", fetcher);
+  const { data: people = [] } = useSWR<{ email: string | null; employmentType?: string }[]>("/api/people", fetcher);
+  const { isAdmin } = useRole();
+  const meContractor = people.find((p) => p.email === session?.user?.email)?.employmentType === "1099";
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -128,7 +137,12 @@ export default function Sidebar() {
           <span className="flex-1">Search</span>
           <kbd className="text-[10px] text-white/30 bg-white/10 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
         </button>
-        {navItems.map((item) => {
+        {navItems.filter((item) => {
+          if (isAdmin) return true;
+          if (item.href === "/pto") return !meContractor;
+          if (item.href === "/contractors") return meContractor;
+          return true;
+        }).map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const isNotifications = item.href === "/notifications";
           if (item.external) {
